@@ -1,0 +1,184 @@
+import requests
+import socket
+import geocoder
+from typing import NamedTuple
+from api_key import WEATHER_API_KEY, FORECAST_API_KEY, GEO_LOCATION
+from emojis import weather_emojis as e
+
+class Weather:
+    def __init__(self, place=None):
+        """
+        Weather class to fetch and display current weather information.
+
+        Args:
+            place (str): Optional location to fetch weather information for.
+        """
+        self.place = place
+        self.current_location = self.get_location()
+        self.base_url = 'http://api.weatherapi.com/v1/current.json'
+        self.query_params = {'key': WEATHER_API_KEY, 'q': self.place or self.get_location()}
+        
+    def get_ipaddress(self):
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(('8.8.8.8', 80))
+            ip_address = s.getsockname()[0]
+            return ip_address
+        except socket.error as e:
+            print("Error: Failed to fetch IP address.", e)
+            raise SystemExit
+    
+    def get_location(self):
+        """
+        Get the current location based on IP address using 2 different methods for retrieval if one fails.
+
+        Returns:
+            str: Current location.
+        """
+        try:
+            ip_address = self.get_ipaddress()
+            response = requests.get('https://ipinfo.io/',params={
+                                                        'token': GEO_LOCATION,
+                                                        'ip': ip_address,
+                                                        'contentType': 'json'
+                                                        }).json()
+            city = response.get('city')
+            region = response.get('region')
+            return city or region or 'Unknown'
+        except:
+            return geocoder.ip('me').state
+
+    
+    def get_weather(self):
+        """
+        Fetch weather information from the API.
+        """
+        try:
+            response = requests.get(self.base_url, params=self.query_params)
+        except requests.exceptions.RequestException: print("Error: Failed to fetch weather data."); raise SystemExit
+        
+        if response.status_code == 429:
+                print("Error: Too many requests. Please try again later.")
+                return self.get_weather()
+        return response.json()
+    
+    def get_weather_data(self):
+        """
+        Display the weather report with relevant information.
+        """
+        data = self.get_weather()
+        name = data['location']['name']
+        unparsed_date = data['current']['last_updated'].split()[0].split('-')
+        
+        def parse_date(date_str: str) -> NamedTuple:
+            """
+            Parse the date string into year, month, and day.
+
+            Args:
+                date_str (str): Date string in the format 'YYYY-MM-DD'.
+
+            Returns:
+                NamedTuple: Parsed date information.
+            """
+            class ParsedDate(NamedTuple):
+                year: str
+                month: str
+                day: str
+            
+            year, month, day = date_str
+            return ParsedDate(year, month, day)
+        
+        date = parse_date(unparsed_date)
+        condition = data['current']['condition']['text']
+        f_degrees = data['current']['temp_f']
+        feels_like = data['current']['feelslike_f']
+        wind_mph = data['current']['wind_mph']
+        wind_dir = data['current']['wind_dir']
+        humidity = data['current']['humidity']
+        get_weather_emoji = lambda condition: e.get(condition, '')
+        return (name, date, condition, f_degrees, feels_like, wind_mph, wind_dir, humidity, get_weather_emoji(condition))
+    
+    def display_weather_report(self):
+            """
+            Display the weather report with relevant information.
+            """
+            name, date, condition, f_degrees, feels_like, wind_mph, wind_dir, humidity, emoji = self.get_weather_data()
+            print(
+            f'''\nWeather Report for {name}       [Last Updated: {date.month}/{date.day}/{date.year}]\n
+            Temperature: {f_degrees}°F, but feels like {feels_like}°F
+            Wind Conditions: {wind_mph} mph
+            Wind Direction: {wind_dir}
+            Weather Condition: {condition} {emoji}
+            Humidity: {humidity}%
+            ''')
+
+class WeatherForecast(Weather):
+    def __init__(self, place=None):
+        super().__init__(place)
+        self.base_url = 'https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline'
+        self.query_params = {'key': FORECAST_API_KEY,
+                            'contentType': 'json',
+                            'unitGroup': 'metric',
+                            'location': self.place or self.get_location(),
+                            'startDateTime': 'current',
+                            'endDateTime': 'current+7days'
+                            }
+
+    def get_weather(self):
+        """
+        Fetch weather information from the API.
+        """
+        try:
+            response = requests.get(self.base_url, params=self.query_params)
+            return response.json()
+        except requests.exceptions.RequestException: print("Error: Failed to fetch weather data."); raise SystemExit
+    
+    def full_weather_data(self):
+        """
+        Fetches the full weather data including temperature range, hourly data, and other details for each day from 06/28/2023 - 07/12/2023.
+
+        Returns:
+        List[Tuple[str, float, float, List[Tuple[str, Tuple[float, float], int, str]]]]:
+        Full weather data for each day.
+            - Each tuple represents a day and contains the following information:
+                - Day: The date of the weather data (YYYY-MM-DD).
+                - Min_Temp/Max_temp: The min/max temperature in degrees (Celsius, Fahrenheit) for the day.
+                - Hourly_Data: A list of tuples representing hourly weather data for the day.
+                    - Each tuple contains the following information:
+                        - Hour: The hour of the weather data (HH:00).
+                        - Temperature: A tuple containing the current temperature in degrees (Celsius, Fahrenheit).
+                        - Humidity: The humidity percentage.
+                        - Conditions: The weather conditions.
+    """
+        data = self.get_weather()
+        full_data = []
+        data_location = data['resolvedAddress']
+        both_degrees = lambda c_temp: (c_temp,round((c_temp * 9/5) + 32, 2))
+        min_temp = [both_degrees(data['days'][i]['tempmin']) for i in range(min(15, len(data['days'])))]
+        max_temp = [both_degrees(data['days'][i]['tempmax']) for i in range(min(15, len(data['days'])))]
+        for i in range(min(15, len(data['days']))):
+            day_data = data['days'][i]
+            day = day_data['datetime']
+            hours = [day_data['hours'][idx]['datetime'] for idx in range(24)]
+            humidity = [round(day_data['hours'][idx]['humidity']) for idx in range(24)]
+            conditions = [day_data['hours'][idx]['conditions'] for idx in range(24)]
+            all_temp = [both_degrees(day_data['hours'][idx]['temp']) for idx in range(24)]
+            all_data = zip(hours, all_temp, humidity, conditions)
+            day_full_data = list(all_data)
+            full_data.append((day, min_temp, max_temp, day_full_data))
+        return full_data
+
+
+if __name__ == '__main__':
+    try:
+        simple_weather = input("Would you like a simple weather report? (y/n): ")
+        place = input("Enter a location (leave empty for current location): ")
+        if simple_weather=='n':
+            weather_data = WeatherForecast(place).full_weather_data()
+        else:
+            Weather(place).display_weather_report()
+    except KeyboardInterrupt:
+        try:
+            again = input("\nWould you like to try again?\nEnter a location (leave empty for current location):")
+            weather_data = WeatherForecast(again).full_weather_data()
+        except: quit()
