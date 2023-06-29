@@ -1,9 +1,13 @@
-import requests
+import json
 import socket
+import os.path
 import geocoder
+import requests
+from pathlib import Path
+from api_key import *
 from typing import NamedTuple
-from api_key import WEATHER_API_KEY, FORECAST_API_KEY, GEO_LOCATION
-from emojis import weather_emojis as e
+from emojis import simple_weather_emojis as e
+from pprint import pprint
 
 class Weather:
     def __init__(self, place=None):
@@ -152,7 +156,8 @@ class WeatherForecast(Weather):
     """
         data = self.get_weather()
         full_data = []
-        data_location = data['resolvedAddress']
+        long, lat = data['longitude'], data['latitude']
+        location_name = data['resolvedAddress']
         both_degrees = lambda c_temp: (c_temp,round((c_temp * 9/5) + 32, 2))
         min_temp = [both_degrees(data['days'][i]['tempmin']) for i in range(min(15, len(data['days'])))]
         max_temp = [both_degrees(data['days'][i]['tempmax']) for i in range(min(15, len(data['days'])))]
@@ -161,13 +166,55 @@ class WeatherForecast(Weather):
             day = day_data['datetime']
             hours = [day_data['hours'][idx]['datetime'] for idx in range(24)]
             humidity = [round(day_data['hours'][idx]['humidity']) for idx in range(24)]
-            conditions = [day_data['hours'][idx]['conditions'] for idx in range(24)]
-            all_temp = [both_degrees(day_data['hours'][idx]['temp']) for idx in range(24)]
-            all_data = zip(hours, all_temp, humidity, conditions)
+            conditions = [[day_data['hours'][idx]['conditions'], ''] for idx in range(24)]
+            hourly_temp = [both_degrees(day_data['hours'][idx]['temp']) for idx in range(24)]
+            all_data = zip(hours, hourly_temp, humidity, conditions)
             day_full_data = list(all_data)
-            full_data.append((day, min_temp, max_temp, day_full_data))
-        return full_data
+            full_data.append((location_name, (long,lat), day, min_temp, max_temp, day_full_data))
+        return self.data_to_json(full_data)
+    
+    def data_to_json(self, data):
+        clean_data = []
+        for _, element in enumerate(data):
+            item = {
+                'location': element[0],
+                'coordinates': element[1], 
+                'day': element[2],
+                'min_temp': element[3][_],
+                'max_temp': element[4][_]
+            }
+            hourly_data = []
+            for i in element[5]:
+                hourly_item = {
+                    'hour': i[0],
+                    'temperature': i[1],
+                    'humidity': i[2],
+                    'conditions': i[3][0],
+                    'emoji': i[3][1]
+                }
+                hourly_data.append(hourly_item)
+            item['hourly_data'] = hourly_data
+            
+            clean_data.append(item)
+        
+        #Change this later
+        if os.path.exists('WeatherAPI/') and os.path.isfile('WeatherAPI/Forecast_data.json'):
+            with open('WeatherAPI/Full_Data.json', 'w') as f:
+                json.dump(clean_data, f, indent=2)
+        # else:
+        #     with open(f'{Path.home()}/Full_Data.json', 'w') as f:
+        #         print(f'Writing to {Path.home()}/Full_Data.json instead.')
+        #         json.dump(clean_data, f, indent=2)
+        
+        return clean_data
+    
 
+
+class Emoji:
+    def __init__(self):
+        pass
+    #openweatherapi api url, api key, and query parameters
+    #Retrieve the conditions from the WeatherForecast class
 
 if __name__ == '__main__':
     try:
@@ -175,6 +222,7 @@ if __name__ == '__main__':
         place = input("Enter a location (leave empty for current location): ")
         if simple_weather=='n':
             weather_data = WeatherForecast(place).full_weather_data()
+            pprint(weather_data)
         else:
             Weather(place).display_weather_report()
     except KeyboardInterrupt:
