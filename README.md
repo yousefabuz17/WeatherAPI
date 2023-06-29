@@ -19,4 +19,4 @@ The Weather Report Application is a simple and convenient way to get accurate we
 
 -Weather: This class fetches and displays the current weather information. It uses the Weather API from weatherapi.com to retrieve data such as temperature, wind conditions, and humidity. (A simple class to display current weather depending on input)
 
--WeatherForecast: This class extends the Weather class and provides a forecast for the upcoming days. It utilizes the Visual Crossing Weather API to fetch a detailed forecast for a specified location. (This class returns specifc set of dat from 06/28/2023 to 07/12/2023 to be used towards weather GUI application)
+-WeatherForecast: This class extends the Weather class and provides a forecast for the upcoming days. It utilizes the Visual Crossing Weather API to fetch a detailed forecast for a specified location.
