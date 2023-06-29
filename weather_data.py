@@ -1,10 +1,11 @@
 import json
 import socket
 import os.path
-import geocoder
 import requests
-from pathlib import Path
+import geocoder
 from api_key import *
+from pathlib import Path
+from subprocess import call
 from typing import NamedTuple
 from emojis import simple_weather_emojis as e
 from pprint import pprint
@@ -90,6 +91,7 @@ class Weather:
                 day: str
             
             year, month, day = date_str
+            
             return ParsedDate(year, month, day)
         
         date = parse_date(unparsed_date)
@@ -100,6 +102,7 @@ class Weather:
         wind_dir = data['current']['wind_dir']
         humidity = data['current']['humidity']
         get_weather_emoji = lambda condition: e.get(condition, '')
+        
         return (name, date, condition, f_degrees, feels_like, wind_mph, wind_dir, humidity, get_weather_emoji(condition))
     
     def display_weather_report(self):
@@ -197,15 +200,16 @@ class WeatherForecast(Weather):
             
             clean_data.append(item)
         
-        #Change this later for better detection for fun
-        if os.path.exists('WeatherAPI/') and os.path.isfile('WeatherAPI/Forecast_data.json'):
-            with open('WeatherAPI/Full_Data.json', 'w') as f:
+        #Change this later for better detection for fun.
+        #Add to detect what the users default text editor is and open the json file there.
+        if os.path.exists('WeatherAPI/') and not os.path.isfile('WeatherAPI/Forecast_data.json'):
+            with open('WeatherAPI/Forecast_data.json', 'w') as f:
                 json.dump(clean_data, f, indent=2)
         # else:
         #     with open(f'{Path.home()}/Full_Data.json', 'w') as f:
         #         print(f'Writing to {Path.home()}/Full_Data.json instead.')
         #         json.dump(clean_data, f, indent=2)
-        
+        call(['/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code', 'WeatherAPI/Forecast_data.json'])
         return clean_data
     
 
