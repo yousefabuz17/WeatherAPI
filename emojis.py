@@ -1,4 +1,4 @@
-weather_emojis = {
+simple_weather_emojis = {
     'Clear': '☀️',
     'Sunny': '☀️',
     'Cloudy': '☁️',
