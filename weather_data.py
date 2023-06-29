@@ -158,7 +158,7 @@ class WeatherForecast(Weather):
         full_data = []
         long, lat = data['longitude'], data['latitude']
         location_name = data['resolvedAddress']
-        both_degrees = lambda c_temp: (c_temp,round((c_temp * 9/5) + 32, 2))
+        both_degrees = lambda c_temp: (c_temp,round((c_temp * 9/5) + 32, 2))    #(Celsius, Fahrenheit)
         min_temp = [both_degrees(data['days'][i]['tempmin']) for i in range(min(15, len(data['days'])))]
         max_temp = [both_degrees(data['days'][i]['tempmax']) for i in range(min(15, len(data['days'])))]
         for i in range(min(15, len(data['days']))):
@@ -197,7 +197,7 @@ class WeatherForecast(Weather):
             
             clean_data.append(item)
         
-        #Change this later
+        #Change this later for better detection for fun
         if os.path.exists('WeatherAPI/') and os.path.isfile('WeatherAPI/Forecast_data.json'):
             with open('WeatherAPI/Full_Data.json', 'w') as f:
                 json.dump(clean_data, f, indent=2)
