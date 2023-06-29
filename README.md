@@ -5,9 +5,13 @@ This is a Python application that fetches and displays weather information using
 The Weather Report Application is a simple and convenient way to get accurate weather information for any location. It utilizes the following APIs and modules:
 
 -requests: A Python library for making HTTP requests to fetch data from APIs.
+
 -socket: A module that provides access to various networking functionalities, used to retrieve the IP address.
+
 -geocoder: A Python library that provides geocoding capabilities, used to get the current location based on IP address.
+
 -api_key: A module containing API keys for accessing weather APIs.
+
 -emojis: A module that maps weather conditions to emojis for visual representation.
 
 The application consists of two classes:
