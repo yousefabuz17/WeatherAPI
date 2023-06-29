@@ -14,7 +14,8 @@ The Weather Report Application is a simple and convenient way to get accurate we
 
 -emojis: A module that maps weather conditions to emojis for visual representation.
 
-The application consists of two classes:
+
+## The application consists of two classes:
 
 -Weather: This class fetches and displays the current weather information. It uses the Weather API from weatherapi.com to retrieve data such as temperature, wind conditions, and humidity. (A simple class to display current weather depending on input)
 
