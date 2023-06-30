@@ -182,7 +182,9 @@ class WeatherForecast(Weather):
                 'max_temp': element[4][_]
             }
             hourly_data = []
+            conditions = []
             for i in element[5]:
+                conditions.append(i[3][0])
                 hourly_item = {
                     'hour': i[0],
                     'temperature': i[1],
@@ -192,9 +194,9 @@ class WeatherForecast(Weather):
                 }
                 hourly_data.append(hourly_item)
             item['hourly_data'] = hourly_data
-            
             clean_data.append(item)
         
+        conditions = self.modify_conditions(set(conditions))
         #Change this later for better detection for fun.
         #Add to detect what the users default text editor is and open the json file there.
         if os.path.exists('WeatherAPI/') and not os.path.isfile('WeatherAPI/Forecast_data.json'):
@@ -207,11 +209,18 @@ class WeatherForecast(Weather):
         call(['/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code', 'WeatherAPI/Forecast_data.json'])
         return clean_data
 
+    def modify_conditions(self, conditions):
+        #Change wording of conditions to be more equivalent to the API description
+        return set(conditions)
+
 class WeatherIcons:
     def __init__(self, content=None):
         self.base_url = 'https://openweathermap.org/img/wn/{}@2x.png' #To be formatted to obtain the png file
         # self.condition, self.emoji = condition[0], condition[1] #['Cloudy', '']
         self.scrape_url = 'https://openweathermap.org/weather-conditions' #To be scraped to obtain the charts
+    def get_url(self):
+        response = requests.get(self.base_url)
+        return response
     
     def scrape_data(self):
         response = requests.get(self.scrape_url).text
