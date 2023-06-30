@@ -148,7 +148,9 @@ class WeatherForecast(Weather):
                         - Temperature: A list of tuples containing the current temperature in degrees (Celsius, Fahrenheit).
                         - Humidity: The humidity percentage.
                         - Conditions: The weather conditions.
-    """
+                        - Emoji: The emoji associated with the weather conditions.
+                        
+        """
         data = self.get_weather()
         full_data = []
         long, lat = data['longitude'], data['latitude']
@@ -208,18 +210,20 @@ class WeatherForecast(Weather):
 
 class Emoji:
     def __init__(self, condition, emoji):
-        self.base_url = 0
-        self.query_params = 0
+        self.base_url = 'https://openweathermap.org/img/wn/'
         self.condition = condition
         self.emoji = emoji
     
     
-    #openweatherapi api url, api key, and query parameters
+    #openweatherapi api url, api key, and the contents (png file) off the url
     #base_url =  https://openweathermap.org/img/wn/
     #condition code = 10d@2x.png
+    #base_url.content = png file for the emoji to be used in the GUI application
     #Retrieve the conditions from the cleaned JSON file from WeatherForecast class
     #Create a set to see all unique conditions
     #All conditions off API is under 'main' key
+    #Create a method to retrieve the emoji based on the condition code
+    #Then format the url to add the condition code to retrieve the png file
     #Class will be used to retrieve a list containing [condition, emoji]... Emoji is an empty string to be replaced
         #The argument being use for this class: i[3]
         #'conditions': i[3][0],
@@ -231,7 +235,7 @@ class Emoji:
     #Example of class being used:
     #Emoji().get_emoji(i[3])
         #'conditions': Emoji().get_emoji(i[3]), -> Output: 'conditions': 'Cloudy'
-        #'emoji': Emoji().get_emoji(i[3])       -> Output: 'emoji': 'png file'
+        #'emoji': Emoji().get_emoji(i[3])       -> Output: 'emoji': 'png file' (will be in bytes)
     #Complete
 
 if __name__ == '__main__':
