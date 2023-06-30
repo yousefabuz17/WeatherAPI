@@ -123,17 +123,13 @@ class WeatherForecast(Weather):
                             'contentType': 'json',
                             'unitGroup': 'metric',
                             'location': self.place or self.get_location(),
-                            'startDateTime': 'current',
-                            'endDateTime': 'current+7days'
                             }
 
     def get_weather(self):
         """
         Fetch weather information from the API.
         """
-        try:
-            response = requests.get(self.base_url, params=self.query_params)
-            return response.json()
+        try: response = requests.get(self.base_url, params=self.query_params); return response.json()
         except requests.exceptions.RequestException: print("Error: Failed to fetch weather data."); raise SystemExit
     
     def full_weather_data(self):
@@ -189,7 +185,7 @@ class WeatherForecast(Weather):
                     'temperature': i[1],
                     'humidity': i[2],
                     'conditions': i[3][0],
-                    'emoji': i[3][1]    #Add emoji support later
+                    'emoji': i[3][1]    #Add emoji support later based on conditions
                 }
                 hourly_data.append(hourly_item)
             item['hourly_data'] = hourly_data
@@ -244,7 +240,6 @@ if __name__ == '__main__':
         place = input("Enter a location (leave empty for current location): ")
         if simple_weather=='n':
             weather_data = WeatherForecast(place).full_weather_data()
-            pprint(weather_data)
         else:
             Weather(place).display_weather_report()
     except KeyboardInterrupt:
