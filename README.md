@@ -1,4 +1,4 @@
-# Weather Report Application
+# Weather Forecast Application
 This is a Python application that fetches and displays weather information using various APIs. It provides current weather data as well as a forecast for the upcoming days. The application allows users to specify a location or use the current location based on the IP address.
 
 ## Introduction
@@ -20,3 +20,13 @@ The Weather Report Application is a simple and convenient way to get accurate we
 -Weather: This class fetches and displays the current weather information. It uses the Weather API from weatherapi.com to retrieve data such as temperature, wind conditions, and humidity. (A simple class to display current weather depending on input)
 
 -WeatherForecast: This class extends the Weather class and provides a forecast for the upcoming days. It utilizes the Visual Crossing Weather API to fetch a detailed forecast for a specified location.
+
+## Future Updates
+
+- User-Friendly GUI: Transform the backend fetched data into a user-friendly GUI application, providing an intuitive and visually appealing interface for users to interact with the weather forecast.
+
+- Automatic Location Detection: Implement automatic location detection, where the application will detect the user's current location based on their IP address and display the weather forecast for the next 10+ days accordingly.
+
+- Real-Time Forecasts: Allow users to input their desired location to view real-time weather forecasts. This feature will enable users to explore weather conditions and predictions for specific cities or regions.
+
+- Predictive Model: Integrate a predictive model into the application to visually represent the potential weather outlook. By leveraging historical weather data and machine learning algorithms, the application can provide users with an estimated representation of future weather conditions.
