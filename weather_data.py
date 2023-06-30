@@ -207,15 +207,23 @@ class WeatherForecast(Weather):
         #         json.dump(clean_data, f, indent=2)
         call(['/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code', 'WeatherAPI/Forecast_data.json'])
         return clean_data
-    
+
 
 
 class Emoji:
-    def __init__(self):
-        pass
+    def __init__(self, condition, emoji):
+        self.base_url = 0
+        self.query_params = 0
+        self.condition = condition
+        self.emoji = emoji
+    
+    
     #openweatherapi api url, api key, and query parameters
+    #base_url =  https://openweathermap.org/img/wn/
+    #condition code = 10d@2x.png
     #Retrieve the conditions from the cleaned JSON file from WeatherForecast class
     #Create a set to see all unique conditions
+    #All conditions off API is under 'main' key
     #Class will be used to retrieve a list containing [condition, emoji]... Emoji is an empty string to be replaced
         #The argument being use for this class: i[3]
         #'conditions': i[3][0],
@@ -227,7 +235,7 @@ class Emoji:
     #Example of class being used:
     #Emoji().get_emoji(i[3])
         #'conditions': Emoji().get_emoji(i[3]), -> Output: 'conditions': 'Cloudy'
-        #'emoji': Emoji().get_emoji(i[3])       -> Output: 'emoji': '☁️'
+        #'emoji': Emoji().get_emoji(i[3])       -> Output: 'emoji': 'png file'
     #Complete
 
 if __name__ == '__main__':
