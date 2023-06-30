@@ -189,7 +189,7 @@ class WeatherForecast(Weather):
                     'temperature': i[1],
                     'humidity': i[2],
                     'conditions': i[3][0],
-                    'emoji': i[3][1]
+                    'emoji': i[3][1]    #Add emoji support later
                 }
                 hourly_data.append(hourly_item)
             item['hourly_data'] = hourly_data
@@ -214,7 +214,21 @@ class Emoji:
     def __init__(self):
         pass
     #openweatherapi api url, api key, and query parameters
-    #Retrieve the conditions from the WeatherForecast class
+    #Retrieve the conditions from the cleaned JSON file from WeatherForecast class
+    #Create a set to see all unique conditions
+    #Class will be used to retrieve a list containing [condition, emoji]... Emoji is an empty string to be replaced
+        #The argument being use for this class: i[3]
+        #'conditions': i[3][0],
+        #'emoji': i[3][1]
+    #Not all conditions will have an emoji based on API being used
+    #Filter conditions to be associated with an emoji no matter what
+    #Replace the empty string with the emoji
+    #Return the list of conditions with emojis to be used in the WeatherForecast class
+    #Example of class being used:
+    #Emoji().get_emoji(i[3])
+        #'conditions': Emoji().get_emoji(i[3]), -> Output: 'conditions': 'Cloudy'
+        #'emoji': Emoji().get_emoji(i[3])       -> Output: 'emoji': '☁️'
+    #Complete
 
 if __name__ == '__main__':
     try:
