@@ -103,18 +103,27 @@ class Weather:
         return (name, date, condition, f_degrees, feels_like, wind_mph, wind_dir, humidity, get_weather_emoji(condition))
     
     def display_weather_report(self):
-            """
-            Display the weather report with relevant information.
-            """
-            name, date, condition, f_degrees, feels_like, wind_mph, wind_dir, humidity, emoji = self.get_weather_data()
-            print(
-            f'''\nWeather Report for {name}       [Last Updated: {date.month}/{date.day}/{date.year}]\n
-            Temperature: {f_degrees}°F, but feels like {feels_like}°F
-            Wind Conditions: {wind_mph} mph
-            Wind Direction: {wind_dir}
-            Weather Condition: {condition} {emoji}
-            Humidity: {humidity}%
-            ''')
+        """
+        Display the weather report with relevant information.
+        """
+        WIND_DIRECTIONS = {
+                        'N': 'North',
+                        'S': 'South',
+                        'E': 'East',
+                        'W': 'West',
+                        'NE': 'Northeast',
+                        'NW': 'Northwest',
+                        'SE': 'Southeast',
+                        'SW': 'Southwest'}
+        name, date, condition, f_degrees, feels_like, wind_mph, wind_dir, humidity, emoji = self.get_weather_data()
+        print(
+        f'''\n \033[4;5;36;1mWeather Report for {name}\033[0m       \033[1;2m[Last Updated: {date.month}/{date.day}/{date.year}]\033[0m\n
+        \033[1;31mTemperature:\033[0m {f_degrees}°F, but feels like {feels_like}°F
+        \033[1;31mWind Speed:\033[0m {wind_mph} mph
+        \033[1;31mWind Direction:\033[0m {WIND_DIRECTIONS.get(wind_dir, wind_dir)}
+        \033[1;31mWeather Condition:\033[0m {condition} {emoji}
+        \033[1;31mHumidity:\033[0m {humidity}%
+        ''')
 
 class WeatherForecast(Weather):
     def __init__(self, place=None):
