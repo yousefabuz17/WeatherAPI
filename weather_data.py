@@ -189,7 +189,7 @@ class WeatherForecast(Weather):
                     'hour': i[0],
                     'temperature': i[1],
                     'humidity': i[2],
-                    'conditions': i[3][0],
+                    'conditions': i[3][0],  #Change to WeatherIcons(i[3][0]).get_emoji() later
                     'emoji': i[3][1]    #Add emoji support later based on conditions
                 }
                 hourly_data.append(hourly_item)
@@ -211,7 +211,7 @@ class WeatherForecast(Weather):
 
     def modify_conditions(self, conditions):
         #Change wording of conditions to be more equivalent to the API description
-        return set(conditions)
+        return WeatherIcons().modify_names(conditions)
 
 class WeatherIcons:
     def __init__(self, content=None):
@@ -238,8 +238,11 @@ class WeatherIcons:
                 for idx, _ in enumerate(cells):
                     icon_code = cells[0].text.strip()[:3]
                     description = cells[-1].text.strip().title()
-                    data.append(WeatherConditions(icon_code=icon_code, description=description))
+                data.append(WeatherConditions(icon_code=icon_code, description=description))
         return data
+    
+    def modify_names(self, conditions):
+        print(conditions)
     
     
     #openweatherapi api url, api key, and the contents (png file) off the url
@@ -261,8 +264,8 @@ class WeatherIcons:
     #Return the list of conditions with emojis to be used in the WeatherForecast class
     #Example of class being used:
     #Emoji().get_emoji(i[3])
-        #'conditions': Emoji(i[3]).get_emoji(), -> Output: 'conditions': 'Cloudy'
-        #'emoji': Emoji(i[3]).get_emoji()       -> Output: 'emoji': 'png file' (will be in bytes)
+        #'conditions': WeatherIcons(i[3]).get_emoji(), -> Output: 'conditions': 'Cloudy'
+        #'emoji': WeatherIcons(i[3]).get_emoji()       -> Output: 'emoji': 'png file' (will be in bytes)
     #Complete
 
 if __name__ == '__main__':
