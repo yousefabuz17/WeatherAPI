@@ -1,8 +1,4 @@
-import json
-import socket
-import os.path
-import requests
-import geocoder
+import json, socket, os.path, requests, geocoder
 from api_key import *
 from pathlib import Path
 from subprocess import call
@@ -153,7 +149,7 @@ class WeatherForecast(Weather):
                 - Hourly_Data: A list of tuples representing hourly weather data for the day.
                     - Each tuple contains the following information:
                         - Hour: The hour of the weather data (HH:00).
-                        - Temperature: A tuple containing the current temperature in degrees (Celsius, Fahrenheit).
+                        - Temperature: A list of tuples containing the current temperature in degrees (Celsius, Fahrenheit).
                         - Humidity: The humidity percentage.
                         - Conditions: The weather conditions.
     """
