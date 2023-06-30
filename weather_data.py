@@ -3,6 +3,7 @@ from api_key import *
 from pathlib import Path
 from subprocess import call
 from typing import NamedTuple
+from bs4 import BeautifulSoup
 from emojis import simple_weather_emojis as e
 from pprint import pprint
 
@@ -206,13 +207,30 @@ class WeatherForecast(Weather):
         call(['/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code', 'WeatherAPI/Forecast_data.json'])
         return clean_data
 
-
-
-class Emoji:
-    def __init__(self, condition, emoji):
-        self.base_url = 'https://openweathermap.org/img/wn/'
-        self.condition = condition
-        self.emoji = emoji
+class WeatherIcons:
+    def __init__(self, content=None):
+        self.base_url = 'https://openweathermap.org/img/wn/{}@2x.png' #To be formatted to obtain the png file
+        # self.condition, self.emoji = condition[0], condition[1] #['Cloudy', '']
+        self.scrape_url = 'https://openweathermap.org/weather-conditions' #To be scraped to obtain the charts
+    
+    def scrape_data(self):
+        response = requests.get(self.scrape_url).text
+        soup = BeautifulSoup(response, 'html.parser')
+        tables = soup.find('table', class_='table')
+        
+        class WeatherConditions(NamedTuple):
+            icon_code: str
+            description: str
+        
+        data = []
+        for icon_table in tables.find_all('tr'):
+            cells = icon_table.find_all("td")
+            if len(cells) >=3:
+                for idx, _ in enumerate(cells):
+                    icon_code = cells[0].text.strip()[:3]
+                    description = cells[-1].text.strip().title()
+                    data.append(WeatherConditions(icon_code=icon_code, description=description))
+        return data
     
     
     #openweatherapi api url, api key, and the contents (png file) off the url
@@ -234,8 +252,8 @@ class Emoji:
     #Return the list of conditions with emojis to be used in the WeatherForecast class
     #Example of class being used:
     #Emoji().get_emoji(i[3])
-        #'conditions': Emoji().get_emoji(i[3]), -> Output: 'conditions': 'Cloudy'
-        #'emoji': Emoji().get_emoji(i[3])       -> Output: 'emoji': 'png file' (will be in bytes)
+        #'conditions': Emoji(i[3]).get_emoji(), -> Output: 'conditions': 'Cloudy'
+        #'emoji': Emoji(i[3]).get_emoji()       -> Output: 'emoji': 'png file' (will be in bytes)
     #Complete
 
 if __name__ == '__main__':
