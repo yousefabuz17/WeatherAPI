@@ -19,7 +19,7 @@ The Weather Forecast Application is convenient way to get accurate weather infor
 - WeatherForecast: This class extends the Weather class and provides a forecast for the upcoming days. It utilizes the Visual Crossing Weather API to fetch a detailed forecast for a specified location.
 
 
-# Future Enhcnacements
+# Future Enhancements
 
 - User-Friendly GUI: Transform the backend fetched data into a user-friendly GUI application, providing an intuitive and visually appealing interface for users to interact with the weather forecast.
 
