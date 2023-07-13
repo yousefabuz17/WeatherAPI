@@ -3,12 +3,14 @@ import json
 import socket
 import requests
 import geocoder
+import sys
 
 from api_key import *
 from functools import reduce
+from fuzzywuzzy import fuzz
 from pathlib import Path
 from subprocess import call
-from typing import NamedTuple
+from dataclasses import dataclass
 from bs4 import BeautifulSoup
 from emojis import simple_weather_emojis as e
 
@@ -22,7 +24,15 @@ WIND_DIRECTIONS = {
     'NE': 'Northeast',
     'NW': 'Northwest',
     'SE': 'Southeast',
-    'SW': 'Southwest'
+    'SW': 'Southwest',
+    'NNE': 'North-northeast',
+    'NNW': 'North-northwest',
+    'ENE': 'East-northeast',
+    'ESE': 'East-southeast',
+    'SSE': 'South-southeast',
+    'SSW': 'South-southwest',
+    'WSW': 'West-southwest',
+    'WNW': 'West-northwest',
 }
 
 
@@ -112,7 +122,7 @@ class Weather:
             f'''\n \033[4;5;36;1mWeather Report for {name}\033[0m       \033[1;2m[Last Updated: {date.month}/{date.day}/{date.year}]\033[0m\n
             \033[1;31mTemperature:\033[0m {f_degrees}°F, but feels like {feels_like}°F
             \033[1;31mWind Speed:\033[0m {wind_mph} mph
-            \033[1;31mWind Direction:\033[0m {WIND_DIRECTIONS.get(wind_dir, wind_dir)}
+            \033[1;31mWind Direction:\033[0m {wind_dir} ({WIND_DIRECTIONS.get(wind_dir, '')})
             \033[1;31mWeather Condition:\033[0m {condition} {emoji}
             \033[1;31mHumidity:\033[0m {humidity}%
             ''')
@@ -128,6 +138,7 @@ class WeatherForecast(Weather):
             'unitGroup': 'metric',
             'location': self.place or self.get_location(),
         }
+        self.get_weather()
 
     def get_weather(self):
         try:
@@ -155,9 +166,10 @@ class WeatherForecast(Weather):
             all_data = zip(hours, hourly_temp, humidity, conditions)
             day_full_data = list(all_data)
             full_data.append((location_name, (long, lat), day, min_temp, max_temp, day_full_data))
-        return self.data_to_json(full_data)
+        return full_data
 
-    def data_to_json(self, data):
+    def data_to_json(self):
+        data = self.full_weather_data()
         clean_data = []
         conditions = set()
         for _, element in enumerate(data):
@@ -176,22 +188,24 @@ class WeatherForecast(Weather):
                     'temperature': i[1],
                     'humidity': i[2],
                     'conditions': i[3][0],
-                    'emoji': ''  # Add emoji support later based on conditions
+                    'emoji': ''  # Add emoji support later based on conditions. Fetch png url
                 }
                 hourly_data.append(hourly_item)
             item['hourly_data'] = hourly_data
             clean_data.append(item)
 
-        conditions = self.modify_conditions(conditions)
-        if os.path.exists('WeatherAPI/') and not os.path.isfile('WeatherAPI/Forecast_data.json'):
-            with open('WeatherAPI/Forecast_data.json', 'w') as f:
+        # conditions = modify_condition_names(conditions)
+        forecast_json = Path(__file__).parent.absolute() / 'Forecast_data.json'
+        if os.path.isfile(forecast_json) or not os.path.isfile(forecast_json):
+            with open(forecast_json, 'w') as f:
                 json.dump(clean_data, f, indent=2)
-        call(['/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code', 'WeatherAPI/Forecast_data.json'])
-        return clean_data
+        return conditions # ! Change to 'return clean_data' when done configuring condition names
+
 
     @staticmethod
-    def modify_conditions(conditions):
-        return WeatherIcons().modify_names(conditions)
+    def modify_condition_names(conditions):
+        weather_conditions = list(map(lambda i: i.description, WeatherIcons().scrape_data()))
+        print(fuzz.QRatio([i for i in conditions if i=='Rain'], 'Rain'))
 
 
 class WeatherIcons:
@@ -208,7 +222,8 @@ class WeatherIcons:
         soup = BeautifulSoup(response, 'html.parser')
         tables = soup.find('table', class_='table')
 
-        class WeatherConditions(NamedTuple):
+        @dataclass
+        class WeatherConditions:
             icon_code: str
             description: str
 
@@ -222,24 +237,36 @@ class WeatherIcons:
                 data.append(WeatherConditions(icon_code=icon_code, description=description))
         return data
 
-    def modify_names(self, conditions):
-        print([i.split() for i in conditions])
 
+# TODO: Implement fuzz.ratio
 
-if __name__ == '__main__':
+def main():
     try:
         simple_weather = input("Would you like a simple weather report? (y/n): ")
         place = input("Enter a location (leave empty for current location): ")
         if simple_weather == 'n':
-            weather_data = WeatherForecast(place).full_weather_data()
+            forecast = WeatherForecast(place)
+            bbb = forecast.data_to_json()
+            bb = forecast.modify_condition_names(bbb)
+            # print(bb)
+            # print()
+            # print()
+            # a = WeatherIcons()
+            # ab = a.scrape_data()
+            # ac = a.modify_condition_names(ab)
+            # print(ac)
         else:
             Weather(place).display_weather_report()
     except KeyboardInterrupt:
         try:
             again = input("\nWould you like to try again?\nEnter a location (leave empty for current location):")
-            weather_data = WeatherForecast(again).full_weather_data()
+            WeatherForecast(again)
         except:
-            quit()
+            print('\nProgram Terminated')
+            sys.exit(0)
+
+if __name__ == '__main__':
+    main()
 
 
 
