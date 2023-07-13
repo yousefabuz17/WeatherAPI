@@ -5,6 +5,7 @@ import requests
 import geocoder
 
 from api_key import *
+from functools import reduce
 from pathlib import Path
 from subprocess import call
 from typing import NamedTuple
@@ -79,8 +80,9 @@ class Weather:
                 year: str
                 month: str
                 day: str
-
-            year, month, day = date_str.split('-')
+            try: year, month, day = date_str.split('-')
+            except (ValueError, AttributeError): year, month, day = '-'.join(date_str).split('-')
+            
             return ParsedDate(year, month, day)
 
         date = parse_date(unparsed_date)
@@ -221,7 +223,7 @@ class WeatherIcons:
         return data
 
     def modify_names(self, conditions):
-        print(conditions)
+        print([i.split() for i in conditions])
 
 
 if __name__ == '__main__':
