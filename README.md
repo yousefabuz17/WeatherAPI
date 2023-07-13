@@ -18,6 +18,12 @@ The Weather Forecast Application is convenient way to get accurate weather infor
 
 - WeatherForecast: This class extends the Weather class and provides a forecast for the upcoming days. It utilizes the Visual Crossing Weather API to fetch a detailed forecast for a specified location.
 
+# Examples
+### Simple Weather
+![Screen Shot 2023-07-13 at 3 42 09 PM](https://github.com/yousefabuz17/FileCraftsman/assets/68834704/0982b1ca-bc32-4494-a6a8-18cf674c2319)
+---
+### Weather Forecast
+- TBA
 
 # Future Enhancements
 
