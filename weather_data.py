@@ -1,24 +1,17 @@
-import aiohttp
-import asyncio
-import os
 import json
+import os
 import socket
-import requests
-import geocoder
 import sys
+from dataclasses import dataclass
+from pathlib import Path
+
+import geocoder
+import requests
+from bs4 import BeautifulSoup
+from rapidfuzz import fuzz, process
 
 from api_key import *
-from functools import reduce
-from rapidfuzz import fuzz, process
-from pathlib import Path
-from subprocess import call
-from dataclasses import dataclass
-from typing import NamedTuple
-from bs4 import BeautifulSoup
 from emojis import simple_weather_emojis as e
-
-
-from api_key import WEATHER_API_KEY, FORECAST_API_KEY
 
 WIND_DIRECTIONS = {
     'N': 'North',
@@ -40,7 +33,7 @@ WIND_DIRECTIONS = {
 }
 
 
-class SimpleWeather:
+class SimpleWeather: #! Turn into a simple GUI
     def __init__(self, place=None):
         self.place = place
         self.current_location = self.get_location()
@@ -210,7 +203,6 @@ class WeatherForecast(SimpleWeather):
 
         dump_json(clean_data)
         clean_data = modify_condition(clean_data)
-        # modify_emoji(json_forecast)
         return clean_data
 
 
@@ -268,6 +260,7 @@ def modify_condition(data, condition=None):
             conditions['conditions'] = best_match
             conditions['emoji'] = list(filter(lambda i: i[0] if i[1]==best_match else '', unpacked))[0][0] # [['03d', 'Scattered Clouds']] --> '03d' --> b'PNG' (after using modify_emoji)
     dump_json(data)
+    modify_emoji()
     return
 
 @staticmethod
@@ -294,11 +287,7 @@ def main():
         if simple_weather == 'n':
             forecast = WeatherForecast(place)
             forecast.full_weather_data()
-            forecast.data_to_json() # Full JSON forecast data (Needs PNG in bytes not weather code)
-            full_forecast_data = modify_emoji() #Now data is complete
-            # **: Forecast JSON file cleaned and modified.
-            #TODO: Retrieve icon_codes and parse urls
-            # weather_icons = WeatherIcons()
+            forecast.data_to_json() # Full JSON forecast data
         else:
             SimpleWeather(place).display_weather_report()
     except KeyboardInterrupt:
@@ -311,28 +300,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
-
-    #openweatherapi api url, api key, and the contents (png file) off the url
-    #base_url =  https://openweathermap.org/img/wn/
-    #condition code = 10d@2x.png
-    #base_url.content = png file for the emoji to be used in the GUI application
-    #Retrieve the conditions from the cleaned JSON file from WeatherForecast class
-    #Create a set to see all unique conditions
-    #All conditions off API is under 'main' key
-    #Create a method to retrieve the emoji based on the condition code
-    #Then format the url to add the condition code to retrieve the png file
-    #Class will be used to retrieve a list containing [condition, emoji]... Emoji is an empty string to be replaced
-        #The argument being use for this class: i[3]
-        #'conditions': i[3][0],
-        #'emoji': i[3][1]
-    #Not all conditions will have an emoji based on API being used
-    #Filter conditions to be associated with an emoji no matter what
-    #Replace the empty string with the emoji
-    #Return the list of conditions with emojis to be used in the WeatherForecast class
-    #Example of class being used:
-    #Emoji().get_emoji(i[3])
-        #'conditions': WeatherIcons(i[3]).get_emoji(), -> Output: 'conditions': 'Cloudy'
-        #'emoji': WeatherIcons(i[3]).get_emoji()       -> Output: 'emoji': 'png file' (will be in bytes)
-    #Complete
