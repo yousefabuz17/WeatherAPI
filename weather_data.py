@@ -40,7 +40,7 @@ WIND_DIRECTIONS = {
 }
 
 
-class Weather:
+class SimpleWeather:
     def __init__(self, place=None):
         self.place = place
         self.current_location = self.get_location()
@@ -137,7 +137,7 @@ class Weather:
             ''')
 
 
-class WeatherForecast(Weather):
+class WeatherForecast(SimpleWeather):
     def __init__(self, place=None):
         super().__init__(place)
         self.base_url = 'https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline'
@@ -210,20 +210,18 @@ class WeatherForecast(Weather):
 
         dump_json(clean_data)
         clean_data = modify_condition(clean_data)
+        # modify_emoji(json_forecast)
         return clean_data
 
 
-class WeatherIcons:
-    def __init__(self, icon_code=None):   # ? Try and remember what content argument for?
-        self.base_url = 'https://openweathermap.org/img/wn/{}@2x.png'
+class WeatherConditons:
+    def __init__(self, content=None):
         self.scrape_url = 'https://openweathermap.org/weather-conditions'
-        self.icon_code = icon_code
 
     def scrape_data(self):
         response = requests.get(self.scrape_url).text
         soup = BeautifulSoup(response, 'html.parser')
         tables = soup.find('table', class_='table')
-
         @dataclass
         class WeatherConditions:
             icon_code: str
@@ -238,13 +236,13 @@ class WeatherIcons:
                     description = cells[-1].text.strip().title()
                 data.append(WeatherConditions(icon_code=icon_code, description=description))
         return data
+
+class WeatherIcons:
+    def __init__(self):
+        self.base_url = 'https://openweathermap.org/img/wn/{}@2x.png'
     
-    def parse_base_url(self, icon_code=None):
+    def parse_icon_url(self, icon_code):
         response = requests.get(self.base_url.format(icon_code))
-        #TODO: Async parse here with modify_emojis
-        
-        # with open(Path.cwd() / 'test.png', 'wb') as file: #! To view png
-        #     file.write(response.content)
         return response.content
 
 
@@ -254,10 +252,11 @@ def dump_json(data):
     if os.path.isfile(forecast_json) or not os.path.isfile(forecast_json):
         with open(forecast_json, 'w') as f:
             json.dump(data, f, indent=2)
+            f.close()
 
 @staticmethod
 def modify_condition(data, condition=None):
-    weather_conditions = WeatherIcons().scrape_data()
+    weather_conditions = WeatherConditons().scrape_data()
     unpacked = list(map(lambda i: [i.icon_code, i.description], weather_conditions))
     for item in data:
         hourly_data = item['hourly_data']
@@ -267,18 +266,26 @@ def modify_condition(data, condition=None):
             best_match_ = process.extractOne(condition.lower(), list(map(lambda i: i.description, weather_conditions)), scorer=fuzz.ratio)
             best_match = best_match_[0] if best_match_ else ""
             conditions['conditions'] = best_match
-            conditions['emoji'] = list(filter(lambda i: i[0] if i[1]==best_match else '', unpacked))[0][0] # [['03d', 'Scattered Clouds']] --> '03d' --> b'PNG'
-            #! Implemenet modify_emojis function here
+            conditions['emoji'] = list(filter(lambda i: i[0] if i[1]==best_match else '', unpacked))[0][0] # [['03d', 'Scattered Clouds']] --> '03d' --> b'PNG' (after using modify_emoji)
     dump_json(data)
     return
 
-#! conditions['emoji'] --> modify_emoji --> WeatherIcons().parse_base_url
-
 @staticmethod
-def modify_emoji(icon_codes):
-    pass
-
-# TODO: Fetch emoji icon_code then parse url to retrieve png's
+def modify_emoji():
+    data = json.loads((Path(__file__).parent.absolute() / 'Forecast_data.json').read_text())
+    weather_icons = WeatherIcons()
+    codes = list({conditions['emoji'] for item in data for conditions in item['hourly_data']})
+    
+    for i in range(len(codes)):
+        with open(Path.cwd() / 'icons' / f'{codes[i]}.png', 'wb') as file: #! To view png
+                png_bytes = weather_icons.parse_icon_url(codes[i])
+                file.write(png_bytes)
+                for item in data:
+                    hourly_data = item['hourly_data']
+                    for conditions in hourly_data:
+                        conditions['emoji'] = str(png_bytes)
+    dump_json(data)
+    return
 
 def main():
     try:
@@ -286,14 +293,14 @@ def main():
         place = input("Enter a location (leave empty for current location): ")
         if simple_weather == 'n':
             forecast = WeatherForecast(place)
-            forecast_full_data = forecast.full_weather_data()
-            json_forecast = forecast.data_to_json()
+            forecast.full_weather_data()
+            forecast.data_to_json() # Full JSON forecast data (Needs PNG in bytes not weather code)
+            full_forecast_data = modify_emoji() #Now data is complete
             # **: Forecast JSON file cleaned and modified.
             #TODO: Retrieve icon_codes and parse urls
-            weather_icons = WeatherIcons().parse_base_url()
-            print(weather_icons)
+            # weather_icons = WeatherIcons()
         else:
-            Weather(place).display_weather_report()
+            SimpleWeather(place).display_weather_report()
     except KeyboardInterrupt:
         try:
             again = input("\nWould you like to try again?\nEnter a location (leave empty for current location):")
