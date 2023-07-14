@@ -8,6 +8,7 @@ from pathlib import Path
 import geocoder
 import requests
 from bs4 import BeautifulSoup
+from tqdm import tqdm
 from rapidfuzz import fuzz, process
 
 from base64 import b64encode, b64decode
@@ -128,6 +129,14 @@ class SimpleWeather: #! Turn into a simple GUI
             \033[1;31mWeather Condition:\033[0m {condition} {emoji}
             \033[1;31mHumidity:\033[0m {humidity}%
             ''')
+    
+    @staticmethod
+    def dump_json(data):
+        forecast_json = Path(__file__).parent.absolute() / 'Forecast_data.json'
+        if os.path.isfile(forecast_json) or not os.path.isfile(forecast_json):
+            with open(forecast_json, 'w') as f:
+                json.dump(data, f, indent=2)
+                f.close()
 
 
 class WeatherForecast(SimpleWeather):
@@ -201,8 +210,8 @@ class WeatherForecast(SimpleWeather):
             item['hourly_data'] = hourly_data
             clean_data.append(item)
 
-        dump_json(clean_data)
-        clean_data = modify_condition(clean_data)
+        SimpleWeather.dump_json(clean_data)
+        clean_data = WeatherIcons.modify_condition(clean_data)
         return clean_data
 
 
@@ -238,48 +247,40 @@ class WeatherIcons:
         return response.content
 
 
-@staticmethod
-def dump_json(data):
-    forecast_json = Path(__file__).parent.absolute() / 'Forecast_data.json'
-    if os.path.isfile(forecast_json) or not os.path.isfile(forecast_json):
-        with open(forecast_json, 'w') as f:
-            json.dump(data, f, indent=2)
-            f.close()
+    @staticmethod
+    def modify_condition(data, condition=None):
+        weather_conditions = WeatherConditons().scrape_data()
+        unpacked = list(map(lambda i: [i.icon_code, i.description], weather_conditions))
+        for item in data:
+            hourly_data = item['hourly_data']
+            for conditions in hourly_data:
+                condition = conditions['conditions']
+                emoji = conditions['emoji']
+                best_match_ = process.extractOne(condition.lower(), list(map(lambda i: i.description, weather_conditions)), scorer=fuzz.ratio)
+                best_match = best_match_[0] if best_match_ else ""
+                conditions['conditions'] = best_match
+                conditions['emoji'] = list(filter(lambda i: i[0] if i[1]==best_match else '', unpacked))[0][0] # [['03d', 'Scattered Clouds']] --> '03d' --> b'PNG' (after using modify_emoji)
+        SimpleWeather.dump_json(data)
+        WeatherIcons.modify_emoji()
+        return
 
-@staticmethod
-def modify_condition(data, condition=None):
-    weather_conditions = WeatherConditons().scrape_data()
-    unpacked = list(map(lambda i: [i.icon_code, i.description], weather_conditions))
-    for item in data:
-        hourly_data = item['hourly_data']
-        for conditions in hourly_data:
-            condition = conditions['conditions']
-            emoji = conditions['emoji']
-            best_match_ = process.extractOne(condition.lower(), list(map(lambda i: i.description, weather_conditions)), scorer=fuzz.ratio)
-            best_match = best_match_[0] if best_match_ else ""
-            conditions['conditions'] = best_match
-            conditions['emoji'] = list(filter(lambda i: i[0] if i[1]==best_match else '', unpacked))[0][0] # [['03d', 'Scattered Clouds']] --> '03d' --> b'PNG' (after using modify_emoji)
-    dump_json(data)
-    modify_emoji()
-    return
-
-@staticmethod
-def modify_emoji():
-    data = json.loads((Path(__file__).parent.absolute() / 'Forecast_data.json').read_text())
-    weather_icons = WeatherIcons()
-    codes = list({conditions['emoji'] for item in data for conditions in item['hourly_data']})
-    
-    for i in range(len(codes)):
-        with open(Path.cwd() / 'icons' / f'{codes[i]}.png', 'wb') as file: #! To view png
-                png_bytes = weather_icons.parse_icon_url(codes[i])
-                file.write(png_bytes)
-                for item in data:
-                    hourly_data = item['hourly_data']
-                    for conditions in hourly_data:
-                        conditions['emoji'] = b64encode(png_bytes).decode('utf-8')
-                        # encode back for bytes
-    dump_json(data)
-    return
+    @staticmethod
+    def modify_emoji():
+        data = json.loads((Path(__file__).parent.absolute() / 'Forecast_data.json').read_text())
+        weather_icons = WeatherIcons()
+        codes = list({conditions['emoji'] for item in data for conditions in item['hourly_data']})
+        
+        for i in range(len(codes)):
+            with open(Path.cwd() / 'icons' / f'{codes[i]}.png', 'wb') as file: #! To view png
+                    png_bytes = weather_icons.parse_icon_url(codes[i])
+                    file.write(png_bytes)
+                    for item in data:
+                        hourly_data = item['hourly_data']
+                        for conditions in hourly_data:
+                            conditions['emoji'] = b64encode(png_bytes).decode('utf-8')
+                            # encode back for bytes
+        SimpleWeather.dump_json(data)
+        return
 
 #TODO: Add progress bar
 
