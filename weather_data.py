@@ -10,7 +10,7 @@ import requests
 from bs4 import BeautifulSoup
 from rapidfuzz import fuzz, process
 
-from api_key import *
+from base64 import b64encode, b64decode
 from emojis import simple_weather_emojis as e
 
 WIND_DIRECTIONS = {
@@ -207,7 +207,7 @@ class WeatherForecast(SimpleWeather):
 
 
 class WeatherConditons:
-    def __init__(self, content=None):
+    def __init__(self):
         self.scrape_url = 'https://openweathermap.org/weather-conditions'
 
     def scrape_data(self):
@@ -276,11 +276,19 @@ def modify_emoji():
                 for item in data:
                     hourly_data = item['hourly_data']
                     for conditions in hourly_data:
-                        conditions['emoji'] = str(png_bytes)
+                        conditions['emoji'] = b64encode(png_bytes).decode('utf-8')
+                        # encode back for bytes
     dump_json(data)
     return
 
+#TODO: Add progress bar
+
 def main():
+    global WEATHER_API_KEY, GEO_LOCATION, FORECAST_API_KEY
+    config = json.load(open(Path(__file__).parent.absolute() / 'config.json', encoding='utf-8'))
+    WEATHER_API_KEY = config['WEATHER_API_KEY']
+    GEO_LOCATION = config['GEO_LOCATION']
+    FORECAST_API_KEY = config['FORECAST_API_KEY']
     try:
         simple_weather = input("Would you like a simple weather report? (y/n): ")
         place = input("Enter a location (leave empty for current location): ")
