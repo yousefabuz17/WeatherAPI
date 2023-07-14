@@ -7,12 +7,14 @@ import sys
 
 from api_key import *
 from functools import reduce
-from fuzzywuzzy import fuzz
+from rapidfuzz import fuzz, process
 from pathlib import Path
 from subprocess import call
 from dataclasses import dataclass
+from typing import NamedTuple
 from bs4 import BeautifulSoup
 from emojis import simple_weather_emojis as e
+
 
 from api_key import WEATHER_API_KEY, FORECAST_API_KEY
 
@@ -85,8 +87,9 @@ class Weather:
         name = data['location']['name']
         unparsed_date = data['current']['last_updated'].split()[0].split('-')
 
-        def parse_date(date_str: str) -> NamedTuple:
-            class ParsedDate(NamedTuple):
+        def parse_date(date_str: str):
+            @dataclass
+            class ParsedDate:
                 year: str
                 month: str
                 day: str
@@ -117,7 +120,11 @@ class Weather:
         )
 
     def display_weather_report(self):
-        name, date, condition, f_degrees, feels_like, wind_mph, wind_dir, humidity, emoji = self.get_weather_data()
+        weather_data = self.get_weather_data()
+        
+        if not weather_data:
+            return 'No data for this location found.'
+        name, date, condition, f_degrees, feels_like, wind_mph, wind_dir, humidity, emoji = weather_data
         print(
             f'''\n \033[4;5;36;1mWeather Report for {name}\033[0m       \033[1;2m[Last Updated: {date.month}/{date.day}/{date.year}]\033[0m\n
             \033[1;31mTemperature:\033[0m {f_degrees}°F, but feels like {feels_like}°F
@@ -138,11 +145,13 @@ class WeatherForecast(Weather):
             'unitGroup': 'metric',
             'location': self.place or self.get_location(),
         }
-        self.get_weather()
 
     def get_weather(self):
         try:
             response = requests.get(self.base_url, params=self.query_params)
+            if response.status_code == 429:
+                print("Error: Too many requests. Please try again later.")
+                return None
             return response.json()
         except requests.exceptions.RequestException:
             print("Error: Failed to fetch weather data.")
@@ -150,6 +159,9 @@ class WeatherForecast(Weather):
 
     def full_weather_data(self):
         data = self.get_weather()
+        if not data:
+            data = []
+        
         full_data = []
         long, lat = data['longitude'], data['latitude']
         location_name = data['resolvedAddress']
@@ -168,8 +180,8 @@ class WeatherForecast(Weather):
             full_data.append((location_name, (long, lat), day, min_temp, max_temp, day_full_data))
         return full_data
 
-    def data_to_json(self):
-        data = self.full_weather_data()
+    def data_to_json(self, data=None):
+        data = self.full_weather_data() if not data else data
         clean_data = []
         conditions = set()
         for _, element in enumerate(data):
@@ -187,25 +199,43 @@ class WeatherForecast(Weather):
                     'hour': i[0],
                     'temperature': i[1],
                     'humidity': i[2],
-                    'conditions': i[3][0],
-                    'emoji': ''  # Add emoji support later based on conditions. Fetch png url
+                    'conditions': i[3][0],#self.modify_condition(condition=i[3][0]).condition,
+                    'emoji': '' #self.modify_condition(condition=i[3][0]).emoji  # Add emoji support later based on conditions. Fetch png url
                 }
                 hourly_data.append(hourly_item)
             item['hourly_data'] = hourly_data
             clean_data.append(item)
 
-        # conditions = modify_condition_names(conditions)
         forecast_json = Path(__file__).parent.absolute() / 'Forecast_data.json'
         if os.path.isfile(forecast_json) or not os.path.isfile(forecast_json):
             with open(forecast_json, 'w') as f:
                 json.dump(clean_data, f, indent=2)
-        return conditions # ! Change to 'return clean_data' when done configuring condition names
+        return clean_data # ! open data and modify conditions to fetch emoji icon_code
 
 
     @staticmethod
-    def modify_condition_names(conditions):
-        weather_conditions = list(map(lambda i: i.description, WeatherIcons().scrape_data()))
-        print(fuzz.QRatio([i for i in conditions if i=='Rain'], 'Rain'))
+    def modify_condition(condition=None):
+        
+        
+        
+        return 
+        # class ConEmoji(NamedTuple):
+        #     condition: str
+        #     emoji: str
+        
+        
+        # weather_conditions = WeatherIcons().scrape_data()
+        # best_match_ = process.extractOne(condition.lower(), list(map(lambda i: i.description, weather_conditions)), scorer=fuzz.ratio)
+        # return best_match_[0] if best_match_ else ""
+        
+        
+        
+        #unpacked = list(map(lambda i: [i.icon_code, i.description], weather_con_emoji))
+        # best_match = best_match_[0] if best_match_ else ""
+        # emoji_icon_code = list(filter(lambda i: i[1]==best_match, unpacked))[0]
+        # final_condition = ConEmoji(condition=best_match, emoji=emoji_icon_code)
+        # ? For Emojis 
+        # return final_condition
 
 
 class WeatherIcons:
@@ -246,15 +276,12 @@ def main():
         place = input("Enter a location (leave empty for current location): ")
         if simple_weather == 'n':
             forecast = WeatherForecast(place)
-            bbb = forecast.data_to_json()
-            bb = forecast.modify_condition_names(bbb)
-            # print(bb)
-            # print()
-            # print()
-            # a = WeatherIcons()
-            # ab = a.scrape_data()
-            # ac = a.modify_condition_names(ab)
-            # print(ac)
+            f = forecast.full_weather_data()
+            ff = forecast.data_to_json()
+            # b = forecast.modify_condition(f)
+            # print(b)
+            # icons = WeatherIcons().scrape_data()
+            # print(icons)
         else:
             Weather(place).display_weather_report()
     except KeyboardInterrupt:
