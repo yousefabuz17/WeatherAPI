@@ -206,12 +206,8 @@ class WeatherForecast(Weather):
             item['hourly_data'] = hourly_data
             clean_data.append(item)
 
-        forecast_json = Path(__file__).parent.absolute() / 'Forecast_data.json'
-        if os.path.isfile(forecast_json) or not os.path.isfile(forecast_json):
-            with open(forecast_json, 'w') as f:
-                json.dump(clean_data, f, indent=2)
-        
-        
+        dump_json(clean_data)
+        clean_data = modify_condition(clean_data)
         return clean_data # ! open data and modify conditions to fetch emoji icon_code
 
 
@@ -238,7 +234,7 @@ class WeatherIcons:
         for icon_table in tables.find_all('tr'):
             cells = icon_table.find_all("td")
             if len(cells) >= 3:
-                for idx, _ in enumerate(cells):
+                for _, _ in enumerate(cells):
                     icon_code = cells[0].text.strip()[:3]
                     description = cells[-1].text.strip().title()
                 data.append(WeatherConditions(icon_code=icon_code, description=description))
@@ -246,38 +242,31 @@ class WeatherIcons:
 
 
 @staticmethod
-def modify_condition(data, condition=None):
-    weather_conditions = WeatherIcons().scrape_data()
-    
-    for item in data:
-        hourly_data = item['hourly_data']
-        for conditions in hourly_data:
-            condition = conditions['conditions']
-            best_match_ = process.extractOne(condition.lower(), list(map(lambda i: i.description, weather_conditions)), scorer=fuzz.ratio)
-            best_match = best_match_[0] if best_match_ else ""
-            conditions['conditions'] = best_match
-    
+def dump_json(data):
     forecast_json = Path(__file__).parent.absolute() / 'Forecast_data.json'
     if os.path.isfile(forecast_json) or not os.path.isfile(forecast_json):
         with open(forecast_json, 'w') as f:
             json.dump(data, f, indent=2)
-    return 
-    # class ConEmoji(NamedTuple):
-    #     condition: str
-    #     emoji: str
-    
-    
-    
-    #unpacked = list(map(lambda i: [i.icon_code, i.description], weather_con_emoji))
-    # best_match = best_match_[0] if best_match_ else ""
-    # emoji_icon_code = list(filter(lambda i: i[1]==best_match, unpacked))[0]
-    # final_condition = ConEmoji(condition=best_match, emoji=emoji_icon_code)
-    # ? For Emojis 
-    # return final_condition
+
+@staticmethod
+def modify_condition(data, condition=None):
+    weather_conditions = WeatherIcons().scrape_data()
+    unpacked = list(map(lambda i: [i.icon_code, i.description], weather_conditions))
+    for item in data:
+        hourly_data = item['hourly_data']
+        for conditions in hourly_data:
+            condition = conditions['conditions']
+            emoji = conditions['emoji']
+            best_match_ = process.extractOne(condition.lower(), list(map(lambda i: i.description, weather_conditions)), scorer=fuzz.ratio)
+            best_match = best_match_[0] if best_match_ else ""
+            conditions['conditions'] = best_match
+            conditions['emoji'] = list(filter(lambda i: i[0] if i[1]==best_match else '', unpacked))[0][0] # [['03d', 'Scattered Clouds']]
+    dump_json(data)
+    return
 
 
 
-# TODO: Implement fuzz.ratio
+# TODO: Fetch emoji icon_code then parse url to retrieve png's
 
 def main():
     try:
@@ -285,9 +274,8 @@ def main():
         place = input("Enter a location (leave empty for current location): ")
         if simple_weather == 'n':
             forecast = WeatherForecast(place)
-            f = forecast.full_weather_data()
+            forecast_full_data = forecast.full_weather_data()
             ff = forecast.data_to_json()
-            modify_condition(ff)
             # b = forecast.modify_condition(f)
             # print(b)
             # icons = WeatherIcons().scrape_data()
