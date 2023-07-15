@@ -10,7 +10,7 @@ import requests
 from bs4 import BeautifulSoup
 from tqdm import tqdm
 from rapidfuzz import fuzz, process
-
+from typing import NamedTuple
 from base64 import b64encode, b64decode
 from emojis import simple_weather_emojis as e
 
@@ -176,13 +176,22 @@ class WeatherForecast(SimpleWeather):
         data = self.get_weather()
         if not data:
             data = []
-        
         full_data = []
-        long, lat = data['longitude'], data['latitude']
+        
+        class LocationInfo(NamedTuple):
+            arg1: float
+            arg2: float
+        
+        coordinates = LocationInfo(arg1=data['longitude'], arg2=data['latitude'])
         location_name = data['resolvedAddress']
         both_degrees = lambda c_temp: (c_temp, round((c_temp * 9 / 5) + 32, 2))  # (Celsius, Fahrenheit)
+        
         min_temp = [both_degrees(data['days'][i]['tempmin']) for i in range(min(15, len(data['days'])))]
+        min_temp = LocationInfo(arg1=min_temp[0], arg2=min_temp[1])
+        
         max_temp = [both_degrees(data['days'][i]['tempmax']) for i in range(min(15, len(data['days'])))]
+        max_temp = LocationInfo(arg1=max_temp[0], arg2=max_temp[1])
+        
         for i in range(min(15, len(data['days']))):
             day_data = data['days'][i]
             day = day_data['datetime']
@@ -190,9 +199,10 @@ class WeatherForecast(SimpleWeather):
             humidity = [round(day_data['hours'][idx]['humidity']) for idx in range(24)]
             conditions = [[day_data['hours'][idx]['conditions'], ''] for idx in range(24)]
             hourly_temp = [both_degrees(day_data['hours'][idx]['temp']) for idx in range(24)]
+            
             all_data = zip(hours, hourly_temp, humidity, conditions)
             day_full_data = list(all_data)
-            full_data.append((location_name, (long, lat), day, min_temp, max_temp, day_full_data))
+            full_data.append((location_name, coordinates, day, min_temp, max_temp, day_full_data))
         progress.update(25)
         return full_data
 
@@ -203,17 +213,22 @@ class WeatherForecast(SimpleWeather):
         for _, element in enumerate(data):
             item = {
                 'location': element[0],
-                'coordinates': element[1],
+                'coordinates': {'longitude': element[1].arg1,
+                                'latitude': element[1].arg2},
+                
                 'day': element[2],
-                'min_temp': element[3][_],
-                'max_temp': element[4][_]
+                'min_temp': {'Celcius':element[3].arg1,
+                            'Fahrenheit':element[3].arg2},
+                'max_temp': {'Celcius':element[4].arg1,
+                            'Fahrenheit':element[4].arg2}
             }
             hourly_data = []
             for i in element[5]:
                 conditions.add(i[3][0])
                 hourly_item = {
                     'hour': i[0],
-                    'temperature': i[1],
+                    'temperature': {'Celcius': i[1][0],
+                                    'Fahrenheit':i[1][1]},
                     'humidity': i[2],
                     'conditions': i[3][0],
                     'emoji': '' 
@@ -308,7 +323,8 @@ class WeatherIcons:
                     for item in data:
                         hourly_data = item['hourly_data']
                         for conditions in hourly_data:
-                            conditions['emoji'] = b64encode(png_bytes).decode('utf-8')
+                            conditions['emoji'] = {'Icon Code':codes[i],
+                                                    'Bytes':b64encode(png_bytes).decode('utf-8')}
                             # encode back for bytes
                 except OSError as e:
                     print("Error: Failed to write icon data.", e)
@@ -329,7 +345,7 @@ def main():
     WEATHER_API_KEY = config['WEATHER_API_KEY']
     GEO_LOCATION = config['GEO_LOCATION']
     FORECAST_API_KEY = config['FORECAST_API_KEY']
-    progress = tqdm(total=100, desc='\x1b[1;32mFetching forecast data\x1b[0m', ncols=80)
+    progress = tqdm(total=100, desc='\x1b[1;32mFetching forecast data\x1b\n[0m', ncols=80)
     try:
         simple_weather = input("\nWould you like a simple weather report? (y/n): ")
         place = input("Enter a location (leave empty for current location): ")
