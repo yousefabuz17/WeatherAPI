@@ -288,13 +288,12 @@ class WeatherForecast(SimpleWeather):
                 'coordinates': {'longitude': element[1].arg1,
                                 'latitude': element[1].arg2},
                 
-                'date': element[2],
-                
-                'min_temp': {'Celcius':element[3].arg1,
-                            'Fahrenheit':element[3].arg2},
-                'max_temp': {'Celcius':element[4].arg1,
-                            'Fahrenheit':element[4].arg2}
-            }
+                'day': {'date': element[2],
+                        'min_temp': {'Celcius':element[3].arg1,
+                                    'Fahrenheit':element[3].arg2},
+                        'max_temp': {'Celcius':element[4].arg1,
+                                    'Fahrenheit':element[4].arg2}}
+                        }
             hourly_data = []
             for i in element[5]:
                 conditions.add(i[3][0])
@@ -307,7 +306,7 @@ class WeatherForecast(SimpleWeather):
                     'emoji': '' 
                 }
                 hourly_data.append(hourly_item)
-            item['hourly_data'] = hourly_data
+            item['day']['hourly_data'] = hourly_data
             clean_data.append(item)
         try:
             SimpleWeather.dump_json(clean_data)
@@ -392,7 +391,7 @@ class WeatherIcons:
         weather_conditions = WeatherConditons().scrape_data()
         unpacked = list(map(lambda i: [i.icon_code, i.description], weather_conditions))
         for item in data:
-            hourly_data = item['hourly_data']
+            hourly_data = item['day']['hourly_data']
             for conditions in hourly_data:
                 condition = conditions['conditions']
                 emoji = conditions['emoji']
@@ -418,7 +417,7 @@ class WeatherIcons:
         """
         data = json.loads((Path(__file__).parent.absolute() / 'Forecast_data.json').read_text())
         weather_icons = WeatherIcons()
-        codes = list({conditions['emoji'] for item in data for conditions in item['hourly_data']})
+        codes = list({conditions['emoji'] for item in data for conditions in item['day']['hourly_data']})
         
         for i in range(len(codes)):
             with open(Path.cwd() / 'icons' / f'{codes[i]}.png', 'wb') as file: #! To view png
@@ -426,7 +425,7 @@ class WeatherIcons:
                     png_bytes = weather_icons.parse_icon_url(codes[i])
                     file.write(png_bytes)
                     for item in data:
-                        hourly_data = item['hourly_data']
+                        hourly_data = item['day']['hourly_data']
                         for conditions in hourly_data:
                             conditions['emoji'] = {'Icon Code':codes[i],
                                                     'Decoded Bytes':b64encode(png_bytes).decode('utf-8')}
@@ -468,6 +467,7 @@ def main():
             print('\nProgram Terminated')
             sys.exit(0)
     except Exception as e:
+        raise e
         print("An unexpected error occurred.", e)
         sys.exit(1)
 
