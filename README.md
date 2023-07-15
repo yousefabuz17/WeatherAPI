@@ -50,16 +50,16 @@ The code for fetching weather forecast data has a time complexity of O(1) as wel
 ### ```Database Operations```:
 The code for updating the SQL database with weather data has a time complexity of O(1) for each entry. The database operations, such as inserting location data, temperature data, and hourly data, are performed individually and do not depend on the size of the input or the number of existing entries.
 ## Progress
-- [```x```] Simple Weather
-- [```x```] Weather Forecast
+- [x] Simple Weather
+- [x] Weather Forecast
 - [ ] GUI/Dashboard
-- [```x```] Automatic Location Detection
-- [```x```] Real-Time Forecasts
+- [x] Automatic Location Detection
+- [x] Real-Time Forecasts
 - [ ] Predictive Model
-- [```x```] SQL DB integration
-    - [```x```] Postgresql
-    - [```x```] Updates DB each run with new data
-- [```x```] Exception Handling
+- [x] SQL DB integration
+    - [x] Postgresql
+    - [x] Updates DB each run with new data
+- [x] Exception Handling
 
 
 
