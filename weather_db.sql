@@ -1,10 +1,10 @@
 -- Database: postgres
 CREATE TABLE Locations(
-  location_id SERIAL PRIMARY KEY,
-  location_name VARCHAR(255)
-  longitude DECIMAL(5, 3)
-  latitude DECIMAL(5,3)
-  coordinates POINT
+    location_id SERIAL PRIMARY KEY,
+    location_name VARCHAR(255)
+    longitude DECIMAL(5, 3)
+    latitude DECIMAL(5,3)
+    coordinates POINT
 );
 
 CREATE table Forecast(

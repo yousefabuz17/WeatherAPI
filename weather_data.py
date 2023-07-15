@@ -187,10 +187,10 @@ class WeatherForecast(SimpleWeather):
         both_degrees = lambda c_temp: (c_temp, round((c_temp * 9 / 5) + 32, 2))  # (Celsius, Fahrenheit)
         
         min_temp = [both_degrees(data['days'][i]['tempmin']) for i in range(min(15, len(data['days'])))]
-        min_temp = LocationInfo(arg1=min_temp[0], arg2=min_temp[1])
+        min_temp = LocationInfo(arg1=min_temp[0][0], arg2=min_temp[0][1])
         
         max_temp = [both_degrees(data['days'][i]['tempmax']) for i in range(min(15, len(data['days'])))]
-        max_temp = LocationInfo(arg1=max_temp[0], arg2=max_temp[1])
+        max_temp = LocationInfo(arg1=max_temp[0][0], arg2=max_temp[0][1])
         
         for i in range(min(15, len(data['days']))):
             day_data = data['days'][i]
@@ -203,7 +203,7 @@ class WeatherForecast(SimpleWeather):
             all_data = zip(hours, hourly_temp, humidity, conditions)
             day_full_data = list(all_data)
             full_data.append((location_name, coordinates, day, min_temp, max_temp, day_full_data))
-        progress.update(25)
+        # progress.update(25)
         return full_data
 
     def data_to_json(self, data=None):
@@ -217,6 +217,7 @@ class WeatherForecast(SimpleWeather):
                                 'latitude': element[1].arg2},
                 
                 'day': element[2],
+                
                 'min_temp': {'Celcius':element[3].arg1,
                             'Fahrenheit':element[3].arg2},
                 'max_temp': {'Celcius':element[4].arg1,
@@ -306,7 +307,7 @@ class WeatherIcons:
             print("Error: Failed to write JSON data.", e)
             raise SystemExit
         WeatherIcons.modify_emoji()
-        progress.update(25)
+        # progress.update(25)
         return
 
     @staticmethod
@@ -324,12 +325,12 @@ class WeatherIcons:
                         hourly_data = item['hourly_data']
                         for conditions in hourly_data:
                             conditions['emoji'] = {'Icon Code':codes[i],
-                                                    'Bytes':b64encode(png_bytes).decode('utf-8')}
-                            # encode back for bytes
+                                                    'Decoded Bytes':b64encode(png_bytes).decode('utf-8')}
+                                                    # encode back for bytes
                 except OSError as e:
                     print("Error: Failed to write icon data.", e)
                     raise SystemExit
-        progress.update(25)
+        # progress.update(25)
         try:
             SimpleWeather.dump_json(data)
         except OSError as e:
@@ -340,12 +341,12 @@ class WeatherIcons:
 #TODO: Add progress bar
 
 def main():
-    global WEATHER_API_KEY, GEO_LOCATION, FORECAST_API_KEY, progress
+    global WEATHER_API_KEY, GEO_LOCATION, FORECAST_API_KEY
     config = json.load(open(Path(__file__).parent.absolute() / 'config.json', encoding='utf-8'))
     WEATHER_API_KEY = config['WEATHER_API_KEY']
     GEO_LOCATION = config['GEO_LOCATION']
     FORECAST_API_KEY = config['FORECAST_API_KEY']
-    progress = tqdm(total=100, desc='\x1b[1;32mFetching forecast data\x1b\n[0m', ncols=80)
+    # progress = tqdm(total=100, desc='\x1b[1;32mFetching forecast data\x1b[0m\n', ncols=80)
     try:
         simple_weather = input("\nWould you like a simple weather report? (y/n): ")
         place = input("Enter a location (leave empty for current location): ")
