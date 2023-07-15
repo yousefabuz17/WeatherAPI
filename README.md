@@ -39,16 +39,16 @@ The Weather Forecast Application is convenient way to get accurate weather infor
 ---
 
 ## Progress
-- [x] Simple Weather
-- [x] Weather Forecast
+- [```x```] Simple Weather
+- [```x```] Weather Forecast
 - [ ] GUI/Dashboard
-- [x] Automatic Location Detection
-- [x] Real-Time Forecasts
+- [```x```] Automatic Location Detection
+- [```x```] Real-Time Forecasts
 - [ ] Predictive Model
-- [x] SQL DB integration
-    - [x] Postgresql
-    - [x] Updates DB each run with new data
-- [x] Exception Handling
+- [```x```] SQL DB integration
+    - [```x```] Postgresql
+    - [```x```] Updates DB each run with new data
+- [```x```] Exception Handling
 
 
 
