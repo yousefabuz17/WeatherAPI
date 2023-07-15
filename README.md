@@ -6,6 +6,9 @@ This is a Python application that fetches and displays weather information using
 - [Introduction](#introduction)
 - [Features](#features)
 - [Examples](#examples)
+    - [Simple Weather](#simple-weather)
+    - [Weather Forecast](#weather-forecast)
+- [Progress](#progress)
 - [Future Enhancements](#future-enhancements)
 
 
@@ -24,9 +27,9 @@ The Weather Forecast Application is convenient way to get accurate weather infor
 ## Features
 
 - Simple Weather: This class fetches and displays the current weather information. It uses the Weather API from weatherapi.com to retrieve data such as temperature, wind conditions, and humidity. (A simple class to display current weather depending on input)
-
+    - [Time Complexity Analysis](#time-complexity-analysis)
 - WeatherForecast: This class extends the SimpleWeather class and provides a forecast for the upcoming days. It utilizes the Visual Crossing Weather API to fetch a detailed forecast for a specified location.
-
+    - [Time Complexity Analysis](#time-complexity-analysis)
 ## Examples
 ### Simple Weather
 ![Screen Shot 2023-07-13 at 3 42 09 PM](https://github.com/yousefabuz17/FileCraftsman/assets/68834704/0982b1ca-bc32-4494-a6a8-18cf674c2319)
@@ -37,7 +40,15 @@ The Weather Forecast Application is convenient way to get accurate weather infor
 - GUI for better visiuallization and user experience
 - **Dashboard still in-development**
 ---
+# Time Complexity Analysis
+### ```Fetching Current Weather Data (Simple Weather)```:
+The code for fetching current weather data has a time complexity of O(1). This is because it directly makes an HTTP request to the weather API and retrieves the required information. The time it takes to fetch the data remains constant, regardless of the size of the input or the number of iterations.
 
+### ```Fetching Weather Forecast Data (Weather Forecast)```:
+The code for fetching weather forecast data has a time complexity of O(1) as well. Similar to the simple weather functionality, it makes an HTTP request to the forecast API and retrieves the forecast data in a constant amount of time.
+
+### ```Database Operations```:
+The code for updating the SQL database with weather data has a time complexity of O(1) for each entry. The database operations, such as inserting location data, temperature data, and hourly data, are performed individually and do not depend on the size of the input or the number of existing entries.
 ## Progress
 - [```x```] Simple Weather
 - [```x```] Weather Forecast
