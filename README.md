@@ -16,7 +16,7 @@ The Weather Forecast Application is convenient way to get accurate weather infor
 - requests: A Python library for making HTTP requests to fetch data from APIs.
 - socket: A module that provides access to various networking functionalities, used to retrieve the IP address.
 - geocoder: A Python library that provides geocoding capabilities, used to get the current location based on IP address.
-- api_key: A module containing API keys for accessing weather APIs.
+- config.json: A module containing API keys for accessing weather APIs.
 - emojis: A module that maps weather conditions to emojis for visual representation.
 
 
