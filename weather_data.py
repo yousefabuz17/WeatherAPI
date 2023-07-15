@@ -63,14 +63,19 @@ class SimpleWeather: #! Turn into a simple GUI
             city = response.get('city')
             region = response.get('region')
             return city or region or 'Unknown'
-        except:
-            return geocoder.ip('me').state
+        except requests.RequestException as e:
+            print("Error: Failed to fetch location data.", e)
+            raise SystemExit
+        except geocoder.GeocoderTimedOut as e:
+            print("Error: Geocoding timed out.", e)
+            raise SystemExit
 
     def get_weather(self):
         try:
             response = requests.get(self.base_url, params=self.query_params)
-        except requests.exceptions.RequestException:
-            print("Error: Failed to fetch weather data.")
+            response.raise_for_status()
+        except requests.RequestException as e:
+            print("Error: Failed to fetch weather data.", e)
             raise SystemExit
 
         if response.status_code == 429:
@@ -119,7 +124,9 @@ class SimpleWeather: #! Turn into a simple GUI
         weather_data = self.get_weather_data()
         
         if not weather_data:
-            return 'No data for this location found.'
+            print('No data for this location found.')
+            return
+        
         name, date, condition, f_degrees, feels_like, wind_mph, wind_dir, humidity, emoji = weather_data
         print(
             f'''\n \033[4;5;36;1mWeather Report for {name}\033[0m       \033[1;2m[Last Updated: {date.month}/{date.day}/{date.year}]\033[0m\n
@@ -134,9 +141,12 @@ class SimpleWeather: #! Turn into a simple GUI
     def dump_json(data):
         forecast_json = Path(__file__).parent.absolute() / 'Forecast_data.json'
         if os.path.isfile(forecast_json) or not os.path.isfile(forecast_json):
-            with open(forecast_json, 'w') as f:
-                json.dump(data, f, indent=2)
-                f.close()
+            try:
+                with open(forecast_json, 'w') as f:
+                    json.dump(data, f, indent=2)
+            except OSError as e:
+                print("Error: Failed to write JSON data.", e)
+                raise SystemExit
 
 
 class WeatherForecast(SimpleWeather):
@@ -153,12 +163,13 @@ class WeatherForecast(SimpleWeather):
     def get_weather(self):
         try:
             response = requests.get(self.base_url, params=self.query_params)
+            response.raise_for_status()
             if response.status_code == 429:
                 print("Error: Too many requests. Please try again later.")
                 return None
             return response.json()
-        except requests.exceptions.RequestException:
-            print("Error: Failed to fetch weather data.")
+        except requests.RequestException as e:
+            print("Error: Failed to fetch weather data.", e)
             raise SystemExit
 
     def full_weather_data(self):
@@ -210,7 +221,11 @@ class WeatherForecast(SimpleWeather):
                 hourly_data.append(hourly_item)
             item['hourly_data'] = hourly_data
             clean_data.append(item)
-        SimpleWeather.dump_json(clean_data)
+        try:
+            SimpleWeather.dump_json(clean_data)
+        except OSError as e:
+            print("Error: Failed to write JSON data.", e)
+            raise SystemExit
         clean_data = WeatherIcons.modify_condition(clean_data)
         return clean_data
 
@@ -220,31 +235,41 @@ class WeatherConditons:
         self.scrape_url = 'https://openweathermap.org/weather-conditions'
 
     def scrape_data(self):
-        response = requests.get(self.scrape_url).text
-        soup = BeautifulSoup(response, 'html.parser')
-        tables = soup.find('table', class_='table')
-        @dataclass
-        class WeatherConditions:
-            icon_code: str
-            description: str
+        try:
+            response = requests.get(self.scrape_url)
+            response.raise_for_status()
+            soup = BeautifulSoup(response.text, 'html.parser')
+            tables = soup.find('table', class_='table')
+            @dataclass
+            class WeatherConditions:
+                icon_code: str
+                description: str
 
-        data = []
-        for icon_table in tables.find_all('tr'):
-            cells = icon_table.find_all("td")
-            if len(cells) >= 3:
-                for _, _ in enumerate(cells):
-                    icon_code = cells[0].text.strip()[:3]
-                    description = cells[-1].text.strip().title()
-                data.append(WeatherConditions(icon_code=icon_code, description=description))
-        return data
+            data = []
+            for icon_table in tables.find_all('tr'):
+                cells = icon_table.find_all("td")
+                if len(cells) >= 3:
+                    for _, _ in enumerate(cells):
+                        icon_code = cells[0].text.strip()[:3]
+                        description = cells[-1].text.strip().title()
+                    data.append(WeatherConditions(icon_code=icon_code, description=description))
+            return data
+        except requests.RequestException as e:
+            print("Error: Failed to fetch weather conditions data.", e)
+            raise SystemExit
 
 class WeatherIcons:
     def __init__(self):
         self.base_url = 'https://openweathermap.org/img/wn/{}@2x.png'
     
     def parse_icon_url(self, icon_code):
-        response = requests.get(self.base_url.format(icon_code))
-        return response.content
+        try:
+            response = requests.get(self.base_url.format(icon_code))
+            response.raise_for_status()
+            return response.content
+        except requests.RequestException as e:
+            print("Error: Failed to fetch icon data.", e)
+            raise SystemExit
 
 
     @staticmethod
@@ -260,7 +285,11 @@ class WeatherIcons:
                 best_match = best_match_[0] if best_match_ else ""
                 conditions['conditions'] = best_match
                 conditions['emoji'] = list(filter(lambda i: i[0] if i[1]==best_match else '', unpacked))[0][0] # [['03d', 'Scattered Clouds']] --> '03d' --> b'PNG' (after using modify_emoji)
-        SimpleWeather.dump_json(data)
+        try:
+            SimpleWeather.dump_json(data)
+        except OSError as e:
+            print("Error: Failed to write JSON data.", e)
+            raise SystemExit
         WeatherIcons.modify_emoji()
         progress.update(25)
         return
@@ -273,6 +302,7 @@ class WeatherIcons:
         
         for i in range(len(codes)):
             with open(Path.cwd() / 'icons' / f'{codes[i]}.png', 'wb') as file: #! To view png
+                try:
                     png_bytes = weather_icons.parse_icon_url(codes[i])
                     file.write(png_bytes)
                     for item in data:
@@ -280,8 +310,15 @@ class WeatherIcons:
                         for conditions in hourly_data:
                             conditions['emoji'] = b64encode(png_bytes).decode('utf-8')
                             # encode back for bytes
+                except OSError as e:
+                    print("Error: Failed to write icon data.", e)
+                    raise SystemExit
         progress.update(25)
-        SimpleWeather.dump_json(data)
+        try:
+            SimpleWeather.dump_json(data)
+        except OSError as e:
+            print("Error: Failed to write JSON data.", e)
+            raise SystemExit
         return
 
 #TODO: Add progress bar
@@ -292,7 +329,7 @@ def main():
     WEATHER_API_KEY = config['WEATHER_API_KEY']
     GEO_LOCATION = config['GEO_LOCATION']
     FORECAST_API_KEY = config['FORECAST_API_KEY']
-    progress = tqdm(total=100, desc='\x1b[1;32mFecthing forecast data\x1b[0m', ncols=80)
+    progress = tqdm(total=100, desc='\x1b[1;32mFetching forecast data\x1b[0m', ncols=80)
     try:
         simple_weather = input("\nWould you like a simple weather report? (y/n): ")
         place = input("Enter a location (leave empty for current location): ")
@@ -309,6 +346,38 @@ def main():
         except:
             print('\nProgram Terminated')
             sys.exit(0)
+    except Exception as e:
+        print("An unexpected error occurred.", e)
+        sys.exit(1)
 
 if __name__ == '__main__':
     main()
+
+# TODO: Turn JSON into a well formatted SQL database
+# - Database: WeatherForecastDB
+
+#   - Collection: Locations
+#     - Columns:
+#       - location_id (unique identifier, e.g., ObjectId)
+#       - location_name (string)
+#       - coordinates (string)
+
+#   - Collection: Forecasts
+#     - Columns:
+#       - forecast_id (unique identifier, e.g., ObjectId)
+#       - location_id (reference to Locations collection)
+#       - day (date)
+#       - min_temp (array of tuples [(float, float)])
+#       - max_temp (array of tuples [(float, float)])
+
+#   - Collection: HourlyData
+#     - Columns:
+#       - hourly_id (unique identifier, e.g., ObjectId)
+#       - forecast_id (reference to Forecasts collection)
+#       - hour (string)
+#       - temperature (tuple of floats)
+#       - humidity (float)
+#       - conditions (string)
+#       - emoji (string or binary data for Base64 encoded PNG)
+
+
