@@ -13,6 +13,7 @@ from rapidfuzz import fuzz, process
 from typing import NamedTuple
 from base64 import b64encode, b64decode
 from emojis import simple_weather_emojis as e
+from weather_db_connect import ForecastDB
 
 WIND_DIRECTIONS = {
     'N': 'North',
@@ -354,6 +355,9 @@ def main():
             forecast = WeatherForecast(place)
             forecast.full_weather_data()
             forecast.data_to_json() # Full JSON forecast data
+            config = ForecastDB.load_json('config.json')
+            sql_params = list(map(lambda i: config.get(i, ''), config))[-4:]
+            weather_db = ForecastDB(sql_params)
         else:
             SimpleWeather(place).display_weather_report()
     except KeyboardInterrupt:
@@ -369,32 +373,5 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-# TODO: Turn JSON into a well formatted SQL database
-# - Database: WeatherForecastDB
-
-#   - Collection: Locations
-#     - Columns:
-#       - location_id (unique identifier, e.g., ObjectId)
-#       - location_name (string)
-#       - coordinates (string)
-
-#   - Collection: Forecasts
-#     - Columns:
-#       - forecast_id (unique identifier, e.g., ObjectId)
-#       - location_id (reference to Locations collection)
-#       - day (date)
-#       - min_temp (array of tuples [(float, float)])
-#       - max_temp (array of tuples [(float, float)])
-
-#   - Collection: HourlyData
-#     - Columns:
-#       - hourly_id (unique identifier, e.g., ObjectId)
-#       - forecast_id (reference to Forecasts collection)
-#       - hour (string)
-#       - temperature (tuple of floats)
-#       - humidity (float)
-#       - conditions (string)
-#       - emoji (string or binary data for Base64 encoded PNG)
 
 

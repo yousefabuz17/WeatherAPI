@@ -159,7 +159,7 @@ class ForecastDB:
 def main():
     config = ForecastDB.load_json('config.json')
     sql_params = list(map(lambda i: config.get(i, ''), config))[-4:]
-    forecast_sql = ForecastDB(sql_params)
+    weather_db = ForecastDB(sql_params)
 
 
 if __name__ == '__main__':
