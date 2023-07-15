@@ -97,7 +97,7 @@ class ForecastDB:
             day: int
         
         for day in range(15):
-            date = ParsedDate(*list(map(lambda i: int(i), self.data[day]['date'].split('-'))))
+            date = ParsedDate(*list(map(lambda i: int(i), self.data[day]['day']['date'].split('-'))))
             table_name = f"Day_{date.month}_{date.day}_{date.year}"
             self.create_day_table(table_name)
             for hour in range(24):
