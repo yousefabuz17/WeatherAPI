@@ -182,6 +182,7 @@ class WeatherForecast(SimpleWeather):
             all_data = zip(hours, hourly_temp, humidity, conditions)
             day_full_data = list(all_data)
             full_data.append((location_name, (long, lat), day, min_temp, max_temp, day_full_data))
+        progress.update(25)
         return full_data
 
     def data_to_json(self, data=None):
@@ -209,7 +210,6 @@ class WeatherForecast(SimpleWeather):
                 hourly_data.append(hourly_item)
             item['hourly_data'] = hourly_data
             clean_data.append(item)
-
         SimpleWeather.dump_json(clean_data)
         clean_data = WeatherIcons.modify_condition(clean_data)
         return clean_data
@@ -262,6 +262,7 @@ class WeatherIcons:
                 conditions['emoji'] = list(filter(lambda i: i[0] if i[1]==best_match else '', unpacked))[0][0] # [['03d', 'Scattered Clouds']] --> '03d' --> b'PNG' (after using modify_emoji)
         SimpleWeather.dump_json(data)
         WeatherIcons.modify_emoji()
+        progress.update(25)
         return
 
     @staticmethod
@@ -279,17 +280,19 @@ class WeatherIcons:
                         for conditions in hourly_data:
                             conditions['emoji'] = b64encode(png_bytes).decode('utf-8')
                             # encode back for bytes
+        progress.update(25)
         SimpleWeather.dump_json(data)
         return
 
 #TODO: Add progress bar
 
 def main():
-    global WEATHER_API_KEY, GEO_LOCATION, FORECAST_API_KEY
+    global WEATHER_API_KEY, GEO_LOCATION, FORECAST_API_KEY, progress
     config = json.load(open(Path(__file__).parent.absolute() / 'config.json', encoding='utf-8'))
     WEATHER_API_KEY = config['WEATHER_API_KEY']
     GEO_LOCATION = config['GEO_LOCATION']
     FORECAST_API_KEY = config['FORECAST_API_KEY']
+    progress = tqdm(total=100, desc='\x1b[1;32mFecthing forecast data\x1b[0m', ncols=80)
     try:
         simple_weather = input("Would you like a simple weather report? (y/n): ")
         place = input("Enter a location (leave empty for current location): ")
@@ -297,6 +300,7 @@ def main():
             forecast = WeatherForecast(place)
             forecast.full_weather_data()
             forecast.data_to_json() # Full JSON forecast data
+            progress.close()
         else:
             SimpleWeather(place).display_weather_report()
     except KeyboardInterrupt:
