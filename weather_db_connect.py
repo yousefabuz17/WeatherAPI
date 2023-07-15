@@ -1,7 +1,9 @@
 import json
 import psycopg2
 
+
 from dataclasses import dataclass
+from typing import NamedTuple
 from pathlib import Path
 
 class ForecastDB:
@@ -9,6 +11,7 @@ class ForecastDB:
         self.data = ForecastDB.load_json('Forecast_data.json')
         self.config = sql_params
         self.sql_connect(self.config)
+        
     
     @staticmethod
     def load_json(file):
@@ -41,7 +44,44 @@ class ForecastDB:
         self.update_db(self.data)
         
     def update_db(self, data):
-        print('hello')
+        
+        global LocationInfo
+        class LocationInfo(NamedTuple):
+            arg1: float
+            arg2: float
+        
+        for day_data in data:
+            location_name = day_data['location']
+            coordinates = LocationInfo(arg1=day_data['coordinates']['longitude'],
+                                        arg2='latitude')
+            execute_first_query = 'INSERT INTO Locations (location_name, longitude, latitude, \
+                            coordinate) VALUES (%s %s %s %s) RETURNING location_id'
+            cursor.execute(execute_first_query, (location_name, coordinates.arg1, coordinates.arg2,
+                                        psycopg2.extensions.AsIs(f"POINT({coordinates.arg1} {coordinates.arg2})")))
+            locations_id = cursor.fetchone()[0]
+            
+            
+            min_temp = LocationInfo(arg1=day_data['min_temp']['Celcius'],
+                                    arg2=day_data['min_temp']['Fahrenheit'])
+            max_temp = LocationInfo(arg1=day_data['max_temp']['Celcius'],
+                                    arg2=day_data['max_temp']['Fahrenheit'])
+            execute_second_query = 'INSERT INTO Temperature (location_id, )'
+            
+            forecast_id = cursor.fetchone()[0]
+            
+            for hourly in day_data['hourly_data']:
+                hour = hourly['hour']
+                hourly_temp = LocationInfo(arg1=hourly['temperature']['Celcius'],
+                                            arg2=hourly['temperature']['Fahrenheit'])
+                humidity = hourly['humidity']
+                conditions = hourly['conditions']
+                emoji = LocationInfo(arg1=hourly['emoji']['Icon Code'],
+                                    arg2=hourly['emoji']['Decoded Bytes'])
+                execute_second_query = 'INSERT INTO '
+                
+            
+        
+        
         return self.close_db()
     
     def close_db(self):
