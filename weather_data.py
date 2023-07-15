@@ -294,13 +294,12 @@ def main():
     FORECAST_API_KEY = config['FORECAST_API_KEY']
     progress = tqdm(total=100, desc='\x1b[1;32mFecthing forecast data\x1b[0m', ncols=80)
     try:
-        simple_weather = input("Would you like a simple weather report? (y/n): ")
+        simple_weather = input("\nWould you like a simple weather report? (y/n): ")
         place = input("Enter a location (leave empty for current location): ")
         if simple_weather == 'n':
             forecast = WeatherForecast(place)
             forecast.full_weather_data()
             forecast.data_to_json() # Full JSON forecast data
-            progress.close()
         else:
             SimpleWeather(place).display_weather_report()
     except KeyboardInterrupt:
