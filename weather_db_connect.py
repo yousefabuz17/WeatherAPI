@@ -1,25 +1,61 @@
 import json
-import psycopg2
 from dataclasses import dataclass
-from typing import NamedTuple
 from pathlib import Path
+from typing import NamedTuple
+import psycopg2
+
 
 class ForecastDB:
-    def __init__(self, sql_params):
+    def __init__(self, sql_params: list):
+        """
+    Initialize the class with SQL connection parameters.
+    
+    Parameter:
+        - `sql_params` (list): A list containing the following SQL connection parameter contents:
+            - `host` (str): The hostname or IP address of the database server.
+            - `database` (str): The name of the database to connect to.
+            - `user` (str): The username to authenticate with.
+            - `password` (str): The password for the specified user.
+        """
         self.data = ForecastDB.load_json('Forecast_data.json')
         self.config = sql_params
         self.sql_connect(self.config)
 
     @staticmethod
     def load_json(file):
+        """
+        Load JSON data from a file.
+
+        Parameters:
+        - `file` (str): The path to the JSON file.
+
+        Returns:
+        - The loaded JSON data.
+        """
         return json.load(open(Path(__file__).parent.absolute() / file, encoding='utf-8'))
 
     @staticmethod
     def config_user():
+        """
+        Load database configuration parameters from the 'config.json' file.
+
+        Returns:
+        - The loaded database configuration parameters.
+        """
         config = ForecastDB.load_json('config.json')
         return config
 
     def sql_connect(self, config_):
+        """
+        Connect to the PostgreSQL database using the provided configuration parameters.
+
+        Parameters:
+        - `config_` (list): A list of SQL connection parameters.
+
+        Raises:
+        - `psycopg2.Error`: If an error occurs during the database connection.
+        - `FileNotFoundError`: If the 'config.json' file is not found.
+        """
         global connection, cursor
 
         @dataclass
@@ -47,7 +83,14 @@ class ForecastDB:
             raise SystemExit
 
     def create_tables(self):
-        
+        """
+        Create the necessary database tables.
+
+        This method creates the tables for storing temperature data for each day and hour.
+
+        Raises:
+        - `psycopg2.Error`: If an error occurs during table creation.
+        """
         class ParsedDate(NamedTuple):
             year: int
             month: int
@@ -62,7 +105,15 @@ class ForecastDB:
                 self.create_hour_table(hour_table_name)
 
     def create_day_table(self, table_name):
-        
+        """
+        Create a table for storing temperature data for a specific day.
+
+        Parameters:
+        - `table_name` (str): The name of the table to be created.
+
+        Raises:
+        - `psycopg2.Error`: If an error occurs during table creation.
+        """
         global weather_db
         class DBTables(NamedTuple):
             location: str
@@ -75,10 +126,30 @@ class ForecastDB:
                         f"{weather_db.temperature}")
 
     def create_hour_table(self, table_name):
+        """
+        Create a table for storing temperature data for a specific hour.
+
+        Parameters:
+        - `table_name` (str): The name of the table to be created.
+
+        Raises:
+        - `psycopg2.Error`: If an error occurs during table creation.
+        """
         cursor.execute(f"CREATE TABLE IF NOT EXISTS {table_name}"
                         f"{weather_db.hourly}")
 
     def update_db(self, data):
+        """
+        Update the database with the weather data.
+
+        This method populates the database with the weather data retrieved from the JSON file.
+
+        Parameters:
+        - `data` (list): The weather data to be updated in the database.
+
+        Raises:
+        - `psycopg2.Error`: If an error occurs during database update.
+        """
         @dataclass
         class LocationInfo:
             arg1: float
@@ -140,6 +211,9 @@ class ForecastDB:
             print(f"An error occurred during database update. Database not affected.")
 
     def close_db(self):
+        """
+        Close the database connection and rollback any pending transaction.
+        """
         if connection:
             try:
                 connection.rollback()

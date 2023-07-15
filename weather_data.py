@@ -2,16 +2,16 @@ import json
 import os
 import socket
 import sys
+from base64 import b64decode, b64encode
 from dataclasses import dataclass
 from pathlib import Path
+from typing import NamedTuple
 
 import geocoder
 import requests
 from bs4 import BeautifulSoup
-from tqdm import tqdm
 from rapidfuzz import fuzz, process
-from typing import NamedTuple
-from base64 import b64encode, b64decode
+
 from emojis import simple_weather_emojis as e
 from weather_db_connect import ForecastDB
 
@@ -37,6 +37,12 @@ WIND_DIRECTIONS = {
 
 class SimpleWeather: #! Turn into a simple GUI
     def __init__(self, place=None):
+        """
+        Initialize the SimpleWeather class.
+
+        Parameters: \n
+            - `place` (str, optional): The location for which to retrieve weather information. Defaults to None.
+        """
         self.place = place
         self.current_location = self.get_location()
         self.base_url = 'http://api.weatherapi.com/v1/current.json'
@@ -44,6 +50,12 @@ class SimpleWeather: #! Turn into a simple GUI
 
     @staticmethod
     def get_ip_address():
+        """
+        Get the IP address of the current machine.
+
+        Returns:
+            `str`: The IP address of the machine.
+        """
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             s.connect(('8.8.8.8', 80))
@@ -54,6 +66,12 @@ class SimpleWeather: #! Turn into a simple GUI
             raise SystemExit
 
     def get_location(self):
+        """
+        Retrieve the location information based on the IP address.
+
+        Returns:
+            - `str`: The location name.
+        """
         try:
             ip_address = self.get_ip_address()
             response = requests.get('https://ipinfo.io/', params={
@@ -72,6 +90,12 @@ class SimpleWeather: #! Turn into a simple GUI
             raise SystemExit
 
     def get_weather(self):
+        """
+        Retrieve the current weather data.
+
+        Returns:
+            - `dict`: The JSON response containing the weather data.
+        """
         try:
             response = requests.get(self.base_url, params=self.query_params)
             response.raise_for_status()
@@ -85,11 +109,23 @@ class SimpleWeather: #! Turn into a simple GUI
         return response.json()
 
     def get_weather_data(self):
+        """
+        Extract the relevant weather data from the API response.
+
+        Returns:
+            - `tuple`: A tuple containing the weather data.
+        """
         data = self.get_weather()
         name = data['location']['name']
         unparsed_date = data['current']['last_updated'].split()[0].split('-')
 
         def parse_date(date_str: str):
+            """
+            Parse the date string into separate year, month, and day components.
+
+            Returns:
+                - `ParsedDate`: A named tuple containing the year, month, and day components.
+            """
             @dataclass
             class ParsedDate:
                 year: str
@@ -122,6 +158,9 @@ class SimpleWeather: #! Turn into a simple GUI
         )
 
     def display_weather_report(self):
+        """
+        Display the weather report.
+        """
         weather_data = self.get_weather_data()
         
         if not weather_data:
@@ -140,6 +179,12 @@ class SimpleWeather: #! Turn into a simple GUI
     
     @staticmethod
     def dump_json(data):
+        """
+        Dump the data into a JSON file.
+
+        Parameters:
+            - `data` (list): The data to be dumped into the JSON file.
+        """
         forecast_json = Path(__file__).parent.absolute() / 'Forecast_data.json'
         if os.path.isfile(forecast_json) or not os.path.isfile(forecast_json):
             try:
@@ -152,6 +197,12 @@ class SimpleWeather: #! Turn into a simple GUI
 
 class WeatherForecast(SimpleWeather):
     def __init__(self, place=None):
+        """
+        Initialize the WeatherForecast class.
+
+        Parameters:
+            - `place` (str, optional): The location for which to retrieve weather information. Defaults to None.
+        """
         super().__init__(place)
         self.base_url = 'https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline'
         self.query_params = {
@@ -162,6 +213,12 @@ class WeatherForecast(SimpleWeather):
         }
 
     def get_weather(self):
+        """
+        Retrieve the weather data for the forecast.
+
+        Returns:
+            - `dict`: The JSON response containing the weather data.
+        """
         try:
             response = requests.get(self.base_url, params=self.query_params)
             response.raise_for_status()
@@ -174,6 +231,12 @@ class WeatherForecast(SimpleWeather):
             raise SystemExit
 
     def full_weather_data(self):
+        """
+        Extract the full weather data for the forecast.
+
+        Returns:
+            - `list`: A list containing the full weather data.
+        """
         data = self.get_weather()
         if not data:
             data = []
@@ -204,10 +267,18 @@ class WeatherForecast(SimpleWeather):
             all_data = zip(hours, hourly_temp, humidity, conditions)
             day_full_data = list(all_data)
             full_data.append((location_name, coordinates, day, min_temp, max_temp, day_full_data))
-        # progress.update(25)
         return full_data
 
     def data_to_json(self, data=None):
+        """
+        Convert the weather data to a JSON format.
+
+        Parameters:
+            - `data` (list, optional): The weather data to be converted. Defaults to None.
+
+        Returns:
+            - `list`: The converted weather data in JSON format.
+        """
         data = self.full_weather_data() if not data else data
         clean_data = []
         conditions = set()
@@ -252,6 +323,12 @@ class WeatherConditons:
         self.scrape_url = 'https://openweathermap.org/weather-conditions'
 
     def scrape_data(self):
+        """
+        Scrape the weather conditions data from the website.
+
+        Returns:
+            - `list`: A list containing the scraped weather conditions data.
+        """
         try:
             response = requests.get(self.scrape_url)
             response.raise_for_status()
@@ -280,6 +357,15 @@ class WeatherIcons:
         self.base_url = 'https://openweathermap.org/img/wn/{}@2x.png'
     
     def parse_icon_url(self, icon_code):
+        """
+        Parse the icon URL and retrieve the icon data.
+
+        Parameters:
+            - `icon_code` (str): The code of the weather icon.
+
+        Returns:
+            - `bytes`: The content of the icon image.
+        """
         try:
             response = requests.get(self.base_url.format(icon_code))
             response.raise_for_status()
@@ -291,6 +377,18 @@ class WeatherIcons:
 
     @staticmethod
     def modify_condition(data, condition=None):
+        """
+        Modify the weather conditions in the data based on the scraped weather conditions.
+
+        This method compares the weather conditions obtained from the API with the scraped weather conditions 
+        to find the best matching condition. It uses fuzzy string matching to identify the best correlated match 
+        between the two condition sets. The weather conditions in the data are updated with the best matching 
+        condition, and the corresponding emoji is also modified accordingly.
+
+        Parameters:
+            - `data` (list): The weather data to be modified.
+            - `condition` (str, optional): The specific condition to modify. Defaults to None.
+        """
         weather_conditions = WeatherConditons().scrape_data()
         unpacked = list(map(lambda i: [i.icon_code, i.description], weather_conditions))
         for item in data:
@@ -308,11 +406,16 @@ class WeatherIcons:
             print("Error: Failed to write JSON data.", e)
             raise SystemExit
         WeatherIcons.modify_emoji()
-        # progress.update(25)
         return
 
     @staticmethod
     def modify_emoji():
+        """
+        Modify the weather emoji in the data and save the icons.
+
+        Returns:
+            - `bytes`: The decoded bytes of the icon image.
+        """
         data = json.loads((Path(__file__).parent.absolute() / 'Forecast_data.json').read_text())
         weather_icons = WeatherIcons()
         codes = list({conditions['emoji'] for item in data for conditions in item['hourly_data']})
@@ -331,7 +434,6 @@ class WeatherIcons:
                 except OSError as e:
                     print("Error: Failed to write icon data.", e)
                     raise SystemExit
-        # progress.update(25)
         try:
             SimpleWeather.dump_json(data)
         except OSError as e:
@@ -339,7 +441,6 @@ class WeatherIcons:
             raise SystemExit
         return
 
-#TODO: Add progress bar
 
 def main():
     global WEATHER_API_KEY, GEO_LOCATION, FORECAST_API_KEY
@@ -347,7 +448,6 @@ def main():
     WEATHER_API_KEY = config['WEATHER_API_KEY']
     GEO_LOCATION = config['GEO_LOCATION']
     FORECAST_API_KEY = config['FORECAST_API_KEY']
-    # progress = tqdm(total=100, desc='\x1b[1;32mFetching forecast data\x1b[0m\n', ncols=80)
     try:
         simple_weather = input("\nWould you like a simple weather report? (y/n): ")
         place = input("Enter a location (leave empty for current location): ")
