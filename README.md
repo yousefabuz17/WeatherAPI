@@ -36,6 +36,21 @@ The Weather Forecast Application is convenient way to get accurate weather infor
 - API data cleaned and formatted for better visualization
 - GUI for better visiuallization and user experience
 - **Dashboard still in-development**
+---
+
+## Progress
+- [x] Simple Weather
+- [x] Weather Forecast
+- [ ] GUI/Dashboard
+- [x] Automatic Location Detection
+- [x] Real-Time Forecasts
+- [ ] Predictive Model
+- [x] SQL DB integration
+    - [x] Postgresql
+    - [x] Updates DB each run with new data
+- [x] Exception Handling
+
+
 
 # Future Enhancements
 
