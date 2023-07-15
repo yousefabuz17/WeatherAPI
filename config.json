@@ -1,5 +1,9 @@
 {
     "WEATHER_API_KEY": "",
     "FORECAST_API_KEY": "",
-    "GEO_LOCATION": ""
+    "GEO_LOCATION": "",
+    "host": "",
+    "database": "",
+    "user": "",
+    "password": ""
 }
