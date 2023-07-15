@@ -216,7 +216,7 @@ class WeatherForecast(SimpleWeather):
                 'coordinates': {'longitude': element[1].arg1,
                                 'latitude': element[1].arg2},
                 
-                'day': element[2],
+                'date': element[2],
                 
                 'min_temp': {'Celcius':element[3].arg1,
                             'Fahrenheit':element[3].arg2},
