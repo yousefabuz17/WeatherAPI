@@ -14,7 +14,7 @@ This is a Python application that fetches and displays weather information using
 
 
 ## Introduction
-The Weather Forecast Application is convenient way to get accurate weather information for any location. It utilizes the following APIs and modules:
+The Weather Forecast Application is a Python application that fetches weather data and provides accurate weather information for any location. It utilizes various APIs and modules to retrieve weather data and present it to the user. The key APIs and modules used in this application are:
 
 - requests: A Python library for making HTTP requests to fetch data from APIs.
 - socket: A module that provides access to various networking functionalities, used to retrieve the IP address.
@@ -28,7 +28,7 @@ The Weather Forecast Application is convenient way to get accurate weather infor
 
 - Simple Weather: This class fetches and displays the current weather information. It uses the Weather API from weatherapi.com to retrieve data such as temperature, wind conditions, and humidity. (A simple class to display current weather depending on input)
     - [Time Complexity Analysis](#time-complexity-analysis)
-- WeatherForecast: This class extends the SimpleWeather class and provides a forecast for the upcoming days. It utilizes the Visual Crossing Weather API to fetch a detailed forecast for a specified location.
+- WeatherForecast: This class extends the Simple Weather class. It utilizes the Visual Crossing Weather API to fetch a detailed forecast for a specified location. The Weather Forecast functionality retrieves and stores hourly weather data for up to 15 days, including temperature, humidity, and weather conditions into a Postgresql database.
     - [Time Complexity Analysis](#time-complexity-analysis)
 ## Examples
 ### Simple Weather
@@ -38,9 +38,10 @@ The Weather Forecast Application is convenient way to get accurate weather infor
 - Weather forecast for up to 15 days ahead (Hourly)
 - API data cleaned and formatted for better visualization
 - GUI for better visiuallization and user experience
+- Demo of the GUI coming soon
 - **Dashboard still in-development**
 ---
-# Time Complexity Analysis
+## Time Complexity Analysis
 ### ```Fetching Current Weather Data (Simple Weather)```:
 The code for fetching current weather data has a time complexity of O(1). This is because it directly makes an HTTP request to the weather API and retrieves the required information. The time it takes to fetch the data remains constant, regardless of the size of the input or the number of iterations.
 
