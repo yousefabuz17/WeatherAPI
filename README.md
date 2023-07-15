@@ -33,8 +33,9 @@ The Weather Forecast Application is convenient way to get accurate weather infor
 ---
 ### Weather Forecast
 - Weather forecast for up to 15 days ahead (Hourly)
-- GUI application for better visiuallization
-- In-development
+- API data cleaned and formatted for better visualization
+- GUI for better visiuallization and user experience
+- **Dashboard still in-development**
 
 # Future Enhancements
 
