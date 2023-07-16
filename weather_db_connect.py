@@ -22,7 +22,7 @@ class ForecastDB:
         self.connection = None
         self.cursor = None
         self.sql_connect(self.config)
-        self.create_locations_table()
+        self.create_tables()
 
     @staticmethod
     def load_json(file):
@@ -36,21 +36,22 @@ class ForecastDB:
     def sql_connect(self, config_):
         global weather_db
         class DBTables(NamedTuple):
-            location: str
-            temperature: str
-            hourly: str
-            weatheremoji: str
+            clocation: str
+            ctemperature: str
+            chourly: str
+            cweatheremoji: str
         
-        weather_db = DBTables(*map(lambda i: i[i.find('('):], open(Path.cwd() / 'weather_db.sql').read().split('\n\n')))
+        # weather_db = DBTables(*map(lambda i: i[i.find('('):], open(Path.cwd() / 'weather_db.sql').read().split('\n\n')))
+        weather_db = DBTables(*open(Path.cwd() / 'weather_db.sql').read().split('\n\n'))
+        
         @dataclass
-        class SqlParams:
+        class SQLParams:
             host: str
             database: str
             username: str
             password: str
 
-        config = SqlParams(*config_)
-
+        config = SQLParams(*config_)
         try:
             self.connection = psycopg2.connect(
                 host=config.host,
@@ -64,35 +65,79 @@ class ForecastDB:
             self.close_db()
             raise SystemExit
 
-    def create_locations_table(self):
-        data = self.data
+    def create_tables(self):
         
-        class LocationInfo(NamedTuple):
-            location_name: str
-            longitude: float
-            latitude: float
-            first_day: str
-        
-        loc_data = LocationInfo(location_name=data[0]['location'],
-                                    longitude=data[0]['coordinates']['longitude'],
-                                    latitude=data[0]['coordinates']['latitude'],
-                                    first_day=data[0]['day']['date'])
         try:
-            self.cursor.execute(f'CREATE TABLE IF NOT EXISTS locations {weather_db.location}')
+            self.cursor.execute(weather_db.clocation)
             self.connection.commit()
-            self.cursor.execute('INSERT INTO locations \
-                                (location_name, longitude, latitude) \
-                                VALUES (%s, %s, %s) RETURNING location_id', \
-                                (loc_data.location_name, loc_data.longitude, loc_data.latitude))
-            location_id = self.cursor.fetchone()[0]
+            
+            self.cursor.execute(weather_db.ctemperature)
             self.connection.commit()
-            self.cursor.execute('SELECT * FROM locations')
-            rows = self.cursor.fetchall()
-            print('Contents of the "locations" table:')
-            for row in rows:
-                print(row)
+            
+            self.cursor.execute(weather_db.chourly)
+            self.connection.commit()
+            
+            self.cursor.execute(weather_db.cweatheremoji)
+            self.connection.commit()
+            
+            self.insert_tables()
+            # self.cursor.execute('INSERT INTO locations \
+            #                     (location_name, longitude, latitude) \
+            #                     VALUES (%s, %s, %s) RETURNING location_id',
+            #                     (loc_data.location_name, loc_data.longitude, loc_data.latitude))
+            # location_id = self.cursor.fetchone()[0]
+            # self.connection.commit()
+            # self.cursor.execute(f'CREATE TABLE IF NOT EXISTS {loc_data.lo}')
         except psycopg2.errors.DuplicateTable:
             print('hello')
+    
+    def insert_tables(self):
+        data = self.data
+        class SQLData(NamedTuple):
+            arg1: str=None
+            arg2: float|str=None
+            arg3: float|str=None
+            arg4: str=None
+            arg5: str=None
+            arg6: str=None
+        
+        def dataclass_mapper(attr, endpoint):
+            return tuple(map(lambda i: getattr(attr, i), range(1, endpoint+1)))
+        
+        
+        for i in range(15):
+            loca_data = SQLData(arg1=data[0]['location'],
+                                arg2=data[0]['coordinates']['longitude'],
+                                arg3=data[0]['coordinates']['latitude'],
+                                arg4=data[0]['day']['date'])
+            location_data = dataclass_mapper(loca_data, 4)
+            self.cursor.execute('INSERT INTO Locations (location_name, longitude, latitude) \
+                                VALUES (%s, %s, %s) \
+                                RETURNING location_id',
+                                location_data)
+            location_id = self.cursor.fetchone()[0]
+            self.connection.commit()
+            
+            temp_data = SQLData(arg1=location_id,
+                                arg2=data[i]['day']['date'],
+                                arg3=data[i]['day']['min_temp']['Celcius'],
+                                arg4=data[i]['day']['min_temp']['Fahrenheight'],
+                                arg5=data[i]['day']['max_temp']['Celcius'],
+                                arg6=data[i]['day']['max_temp']['Fahrenheight'])
+            temperature_data = dataclass_mapper(temp_data, 6)
+            self.cursor.execute('INSERT INTO Temperature (location_id, day, min_temp_cel, \
+                                                        min_temp_fah, max_temp_cel, max_temp_fah) \
+                                VALUES (%s, %s, %s, %s, %s, %s) \
+                                RETURNING temperature_id',
+                                temperature_data)
+            temperature_id = self.cursor.fetchone()[0]
+            self.connection.commit()
+        
+        def insert_hourly_data(self):
+                for i in range(24):
+                    pass
+        
+        self.insert_hourly_data()
     
     # def create_tables(self):
     #     global table_name
