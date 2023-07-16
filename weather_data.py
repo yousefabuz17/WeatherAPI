@@ -46,7 +46,7 @@ class SimpleWeather: #! Turn into a simple GUI
         self.place = place
         self.current_location = self.get_location()
         self.base_url = 'http://api.weatherapi.com/v1/current.json'
-        self.query_params = {'key': WEATHER_API_KEY, 'q': self.place or self.get_location()}
+        self.query_params = {'key': config.weather_api, 'q': self.place or self.get_location()}
 
     @staticmethod
     def get_ip_address():
@@ -75,7 +75,7 @@ class SimpleWeather: #! Turn into a simple GUI
         try:
             ip_address = self.get_ip_address()
             response = requests.get('https://ipinfo.io/', params={
-                'token': GEO_LOCATION,
+                'token': config.geo_api,
                 'ip': ip_address,
                 'contentType': 'json'
             }).json()
@@ -206,7 +206,7 @@ class WeatherForecast(SimpleWeather):
         super().__init__(place)
         self.base_url = 'https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline'
         self.query_params = {
-            'key': FORECAST_API_KEY,
+            'key': config.forecast_api,
             'contentType': 'json',
             'unitGroup': 'metric',
             'location': self.place or self.get_location(),
@@ -441,12 +441,22 @@ class WeatherIcons:
         return
 
 
+
 def main():
-    global WEATHER_API_KEY, GEO_LOCATION, FORECAST_API_KEY
-    config = json.load(open(Path(__file__).parent.absolute() / 'config.json', encoding='utf-8'))
-    WEATHER_API_KEY = config['WEATHER_API_KEY']
-    GEO_LOCATION = config['GEO_LOCATION']
-    FORECAST_API_KEY = config['FORECAST_API_KEY']
+    global config
+    @dataclass
+    class ConfigInfo:
+        weather_api: str
+        forecast_api: str
+        geo_api: str
+        host: str
+        database: str
+        username: str
+        password: str
+    
+    config_file = json.load(open(Path(__file__).parent.absolute() / 'config.json', encoding='utf-8'))
+    config = ConfigInfo(*config_file.values())
+    
     try:
         simple_weather = input("\nWould you like a simple weather report? (y/n): ")
         place = input("Enter a location (leave empty for current location): ")
@@ -454,8 +464,7 @@ def main():
             forecast = WeatherForecast(place)
             forecast.full_weather_data()
             forecast.data_to_json() # Full JSON forecast data
-            config = ForecastDB.load_json('config.json')
-            sql_params = list(map(lambda i: config.get(i, ''), config))[-4:]
+            sql_params = map(lambda i: getattr(config, i), ['host', 'database', 'username', 'password'])
             weather_db = ForecastDB(sql_params)
         else:
             SimpleWeather(place).display_weather_report()
