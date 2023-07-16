@@ -42,8 +42,7 @@ class ForecastDB:
             cweatheremoji: str
         
         # weather_db = DBTables(*map(lambda i: i[i.find('('):], open(Path.cwd() / 'weather_db.sql').read().split('\n\n')))
-        weather_db = DBTables(*open(Path.cwd() / 'weather_db.sql').read().split('\n\n'))
-        
+        weather_db = DBTables(*open(Path.cwd() / 'weather_db.sql').read().split('\n\n')[:4])
         @dataclass
         class SQLParams:
             host: str
@@ -81,15 +80,9 @@ class ForecastDB:
             self.connection.commit()
             
             self.insert_tables()
-            # self.cursor.execute('INSERT INTO locations \
-            #                     (location_name, longitude, latitude) \
-            #                     VALUES (%s, %s, %s) RETURNING location_id',
-            #                     (loc_data.location_name, loc_data.longitude, loc_data.latitude))
-            # location_id = self.cursor.fetchone()[0]
-            # self.connection.commit()
-            # self.cursor.execute(f'CREATE TABLE IF NOT EXISTS {loc_data.lo}')
+            
         except psycopg2.errors.DuplicateTable:
-            print('hello')
+            print('Table already exists')
     
     def insert_tables(self):
         data = self.data
@@ -100,148 +93,37 @@ class ForecastDB:
             arg4: str=None
             arg5: str=None
             arg6: str=None
-        
+
         def dataclass_mapper(attr, endpoint):
-            return tuple(map(lambda i: getattr(attr, i), range(1, endpoint+1)))
+            return  (*map(lambda i: getattr(attr, f'arg{i}'), range(1, endpoint+1)),)
         
+        loca_data = SQLData(arg1=data[0]['location'],
+                            arg2=data[0]['coordinates']['longitude'],
+                            arg3=data[0]['coordinates']['latitude'])
+        location_data = dataclass_mapper(loca_data, 3)
+        self.cursor.execute('INSERT INTO Locations (location_name, longitude, latitude) \
+                            VALUES (%s, %s, %s) \
+                            RETURNING location_id',
+                            (*location_data,))
+        location_id = self.cursor.fetchone()[0]
+        self.connection.commit()
         
         for i in range(15):
-            loca_data = SQLData(arg1=data[0]['location'],
-                                arg2=data[0]['coordinates']['longitude'],
-                                arg3=data[0]['coordinates']['latitude'],
-                                arg4=data[0]['day']['date'])
-            location_data = dataclass_mapper(loca_data, 4)
-            self.cursor.execute('INSERT INTO Locations (location_name, longitude, latitude) \
-                                VALUES (%s, %s, %s) \
-                                RETURNING location_id',
-                                location_data)
-            location_id = self.cursor.fetchone()[0]
-            self.connection.commit()
-            
             temp_data = SQLData(arg1=location_id,
                                 arg2=data[i]['day']['date'],
                                 arg3=data[i]['day']['min_temp']['Celcius'],
-                                arg4=data[i]['day']['min_temp']['Fahrenheight'],
+                                arg4=data[i]['day']['min_temp']['Fahrenheit'],
                                 arg5=data[i]['day']['max_temp']['Celcius'],
-                                arg6=data[i]['day']['max_temp']['Fahrenheight'])
+                                arg6=data[i]['day']['max_temp']['Fahrenheit'])
             temperature_data = dataclass_mapper(temp_data, 6)
             self.cursor.execute('INSERT INTO Temperature (location_id, day, min_temp_cel, \
                                                         min_temp_fah, max_temp_cel, max_temp_fah) \
                                 VALUES (%s, %s, %s, %s, %s, %s) \
                                 RETURNING temperature_id',
-                                temperature_data)
+                                (*temperature_data,))
             temperature_id = self.cursor.fetchone()[0]
             self.connection.commit()
-        
-        def insert_hourly_data(self):
-                for i in range(24):
-                    pass
-        
-        self.insert_hourly_data()
-    
-    # def create_tables(self):
-    #     global table_name
-    #     class ParsedDate(NamedTuple):
-    #         year: int
-    #         month: int
-    #         day: int
-        
-    #     for day in range(15):
-    #         date = ParsedDate(*map(lambda i: int(i), self.data[day]['day']['date'].split('-')))
-    #         table_name = f"day_{date.month}_{date.day}_{date.year}"
-    #         self.create_day_table()
 
-    # def create_day_table(self):
-    #     global weather_db
-    #     class DBTables(NamedTuple):
-    #         location: str
-    #         temperature: str
-    #         hourly: str
-    #         weatheremoji: str
-        
-    #     weather_db = DBTables(*map(lambda i:  i[i.find('('):], open(Path.cwd() / 'weather_db.sql').read().split('\n\n')))
-    #     self.cursor.execute(f"""CREATE TABLE IF NOT EXISTS {table_name} ( 
-    #                         location_id SERIAL PRIMARY KEY,
-    #                         location_name VARCHAR(255),
-    #                         longitude DECIMAL(5, 3),
-    #                         latitude DECIMAL(5,3)
-    #                         );""")
-    #     self.cursor.execute()
-    #     self.connection.commit()
-        # self.update_db(table_name)
-
-    # def update_db(self,table_name):
-    #     @dataclass
-    #     class LocationInfo:
-    #         arg1: float
-    #         arg2: float
-    #     try:
-    #         locations = self.data[0]['coordinates']
-    #         for location in range(len(self.data)):
-    #             # **Locations Table**
-    #             location_name = self.data[location]['location']
-    #             print(location_name)
-                # coordinates = LocationInfo(arg1=self.data[location]['longitude'], arg2=self.data[location]['latitude'])
-                # execute_first_query = f'INSERT INTO {table_name} (location_name, longitude, latitude) VALUES (%s, %s, %s) RETURNING location_id'
-                # self.cursor.execute(execute_first_query, (location_name, coordinates.arg1, coordinates.arg2))
-                # location_id = self.cursor.fetchone()[0]
-                
-            # for day_data in self.data:
-            #     # **Locations Table**
-            #     location_name = day_data['location']
-            #     coordinates = LocationInfo(arg1=day_data['coordinates']['longitude'], arg2=day_data['coordinates']['latitude'])
-            #     execute_first_query = f'INSERT INTO {table_name} (location_name, longitude, latitude) VALUES (%s, %s, %s) RETURNING location_id'
-            #     self.cursor.execute(execute_first_query, (location_name, coordinates.arg1, coordinates.arg2))
-            #     location_id = self.cursor.fetchone()[0]
-            #     # ** Locations Table Executed **
-
-                # **Temperature Table**
-                # date = day_data['day']['date']
-                # day_data = day_data['day']
-                # min_temp = LocationInfo(arg1=day_data['min_temp']['Celcius'],
-                #                         arg2=day_data['min_temp']['Fahrenheit'])
-                # max_temp = LocationInfo(arg1=day_data['max_temp']['Celcius'],
-                #                         arg2=day_data['max_temp']['Fahrenheit'])
-                # execute_second_query = 'INSERT INTO Temperature (location_id, day, min_temp_cel, min_temp_fah, max_temp_cel, max_temp_fah) VALUES (%s, %s, %s, %s, %s, %s) RETURNING temperature_id'
-                # self.cursor.execute(execute_second_query, (location_id, date, min_temp.arg1, min_temp.arg2, max_temp.arg1, max_temp.arg2))
-                # temperature_id = self.cursor.fetchone()[0]
-                # # **Temperature Table Executed**
-                
-                # # Check if the temperature_id already exists in Hourly table
-                # self.cursor.execute('SELECT COUNT(*) FROM Hourly WHERE temperature_id = %s', (temperature_id,))
-                # count = self.cursor.fetchone()[0]
-
-                # for hourly in day_data['hourly_data']:
-                #     # **Hourly Table**
-                #     hour = hourly['hour']
-                #     temperature = LocationInfo(arg1=hourly['temperature']['Celcius'],
-                #                             arg2=hourly['temperature']['Fahrenheit'])
-                #     humidity = hourly['humidity']
-                #     conditions = hourly['conditions']
-                #     execute_third_query = 'INSERT INTO Hourly (temperature_id, hour, temp_cel, temp_fah, humidity, conditions) VALUES (%s, %s, %s, %s, %s, %s) RETURNING temperature_id'
-                #     try:
-                #         self.cursor.execute(execute_third_query, (temperature_id, hour, temperature.arg1, temperature.arg2, humidity, conditions))
-                #         hourly_id = self.cursor.fetchone()[0]
-                #         if temperature_id is None:
-                #             temperature_id = hourly_id  # Set temperature_id on the first iteration
-                #     except psycopg2.errors.UniqueViolation:
-                #         # If a unique constraint violation occurs, skip the row
-                #         print(f"Skipping duplicate entry for temperature_id: {temperature_id}")
-                #         continue
-                #     # **Hourly Table Executed**
-                #     self.connection.commit()
-                #     # **Weather Emoji Table**
-                #     emoji = LocationInfo(arg1=hourly['emoji']['Icon Code'],
-                #                         arg2=hourly['emoji']['Decoded Bytes'])
-                #     execute_fourth_query = 'INSERT INTO WeatherEmoji (icon_code, bytes) VALUES (%s, %s) RETURNING emoji_id'
-                #     self.cursor.execute(execute_fourth_query, (emoji.arg1, emoji.arg2))
-                #     weather_emoji_id = self.cursor.fetchone()[0]
-                #     # **Weather Emoji Table Executed**
-        # except Exception as e:
-        #     # Rollback the transaction in case of any exception
-        #     self.connection.rollback()
-        #     raise e
-        #     print(f"An error occurred during database update. Database not affected.")
 
     # def get_table_contents(self):
     #     for day in range(15):
