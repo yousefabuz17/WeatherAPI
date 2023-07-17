@@ -44,6 +44,15 @@ class ConfigInfo(NamedTuple):
     username: str
     password: str
 
+class LocationInfo(NamedTuple):
+    arg1: float=None
+    arg2: float=None
+
+@dataclass
+class WeatherConditions:
+    icon_code: str
+    description: str
+
 class SimpleWeather: #! Turn into a simple GUI
     def __init__(self, place=None):
         """
@@ -224,6 +233,10 @@ class WeatherForecast(SimpleWeather):
             'location': self.place or self.get_location(),
         }
 
+    @staticmethod
+    def get_config():
+        return json.load(open(Path(__file__).parent.absolute() / 'config.json', encoding='utf-8'))
+    
     def get_weather(self):
         """
         Retrieve the weather data for the forecast.
@@ -254,10 +267,6 @@ class WeatherForecast(SimpleWeather):
             data = []
         full_data = []
         
-        class LocationInfo(NamedTuple):
-            arg1: float=None
-            arg2: float=None
-        
         coordinates = LocationInfo(arg1=data['longitude'], arg2=data['latitude'])
         location_name = data['resolvedAddress']
         both_degrees = lambda c_temp: (c_temp, round((c_temp * 9 / 5) + 32, 2))  # (Celsius, Fahrenheit)
@@ -273,7 +282,7 @@ class WeatherForecast(SimpleWeather):
             hours = [day_data['hours'][idx]['datetime'] for idx in range(24)]
             humidity = [round(day_data['hours'][idx]['humidity']) for idx in range(24)]
             conditions = [[day_data['hours'][idx]['conditions'], ''] for idx in range(24)]
-            hourly_temp = [both_degrees(day_data['hours'][idx]['temp']) for idx in range(24)]
+            hourly_temp = [LocationInfo(*both_degrees(day_data['hours'][idx]['temp'])) for idx in range(24)]
             
             all_data = zip(hours, hourly_temp, humidity, conditions)
             day_full_data = list(all_data)
@@ -310,8 +319,8 @@ class WeatherForecast(SimpleWeather):
                 conditions.add(i[3][0])
                 hourly_item = {
                     'hour': i[0],
-                    'temperature': {'Celcius': i[1][0],
-                                    'Fahrenheit':i[1][1]},
+                    'temperature': {'Celcius': i[1].arg1,
+                                    'Fahrenheit':i[1].arg2},
                     'humidity': i[2],
                     'conditions': i[3][0],
                     'emoji': '' 
@@ -344,10 +353,6 @@ class WeatherConditons:
             response.raise_for_status()
             soup = BeautifulSoup(response.text, 'html.parser')
             tables = soup.find('table', class_='table')
-            @dataclass
-            class WeatherConditions:
-                icon_code: str
-                description: str
 
             data = []
             for icon_table in tables.find_all('tr'):
@@ -383,7 +388,6 @@ class WeatherIcons:
         except requests.RequestException as e:
             print("Error: Failed to fetch icon data.", e)
             raise SystemExit
-
 
     @staticmethod
     def modify_condition(data, condition=None):
@@ -456,13 +460,10 @@ class WeatherIcons:
             raise SystemExit
         return
 
-
-
 def main():
     global config
     
-    config_file = json.load(open(Path(__file__).parent.absolute() / 'config.json', encoding='utf-8'))
-    config = ConfigInfo(*config_file.values())
+    config = ConfigInfo(*WeatherForecast.get_config().values())
     
     def start_forecast(place):
         forecast = WeatherForecast(place)

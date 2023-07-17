@@ -2,11 +2,37 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import NamedTuple
+
 import psycopg2
 
 
+
+class SQLParams(NamedTuple):
+    host: str
+    database: str
+    username: str
+    password: str
+@dataclass
+class DBTables:
+    clocation: str
+    ctemperature: str
+    chourly: str
+    cweatheremoji: str
+    ilocation: str
+    itemperature: str
+    ihourly: str
+    iweatheremoji: str
+@dataclass
+class SQLData:
+    arg1: str=None
+    arg2: float|str=None
+    arg3: float|str=None
+    arg4: str=None
+    arg5: str=None
+    arg6: str=None
+
 class ForecastDB:
-    def __init__(self, sql_params: list):
+    def __init__(self, config: list):
         """
     Initialize the class with SQL connection parameters.
     
@@ -19,7 +45,7 @@ class ForecastDB:
         """
         self.data = ForecastDB.load_json('Forecast_data.json')
         self.days = 15
-        self.config = sql_params
+        self.config = config
         self.connection = None
         self.cursor = None
         self.sql_connect(self.config)
@@ -30,28 +56,15 @@ class ForecastDB:
         return json.load(open(Path(__file__).parent.absolute() / file, encoding='utf-8'))
 
     @staticmethod
-    def config_user():
-        config = ForecastDB.load_json('config.json')
-        return config
+    def get_config():
+        return ForecastDB.load_json('config.json')
 
     def sql_connect(self, config_):
         global weather_db
-        class DBTables(NamedTuple):
-            clocation: str
-            ctemperature: str
-            chourly: str
-            cweatheremoji: str
         
-        # weather_db = DBTables(*map(lambda i: i[i.find('('):], open(Path.cwd() / 'weather_db.sql').read().split('\n\n')))
-        weather_db = DBTables(*open(Path(__file__).parent.absolute() / 'weather_db.sql').read().split('\n\n')[:4])
-        @dataclass
-        class SQLParams:
-            host: str
-            database: str
-            username: str
-            password: str
-
+        weather_db = DBTables(*open(Path(__file__).parent.absolute() / 'weather_db.sql').read().split('\n\n')) #All SQL create table scripts
         config = SQLParams(*config_)
+        
         try:
             self.connection = psycopg2.connect(
                 host=config.host,
@@ -87,13 +100,6 @@ class ForecastDB:
     
     def insert_tables(self):
         data = self.data
-        class SQLData(NamedTuple):
-            arg1: str=None
-            arg2: float|str=None
-            arg3: float|str=None
-            arg4: str=None
-            arg5: str=None
-            arg6: str=None
 
         def dataclass_mapper(attr, endpoint):
             return  (*map(lambda i: getattr(attr, f'arg{i}'), range(1, endpoint+1)),)
@@ -103,9 +109,7 @@ class ForecastDB:
                             arg2=data[0]['coordinates']['longitude'],
                             arg3=data[0]['coordinates']['latitude'])
         location_data = dataclass_mapper(loca_data, 3)
-        self.cursor.execute('INSERT INTO Locations (location_name, longitude, latitude) \
-                            VALUES (%s, %s, %s) \
-                            RETURNING location_id',
+        self.cursor.execute(weather_db.ilocation,
                             (*location_data,))
         location_id = self.cursor.fetchone()[0]
         self.connection.commit()
@@ -121,10 +125,7 @@ class ForecastDB:
                                 arg5=data[i]['day']['max_temp']['Celcius'],
                                 arg6=data[i]['day']['max_temp']['Fahrenheit'])
             temperature_data = dataclass_mapper(temp_data, 6)
-            self.cursor.execute('INSERT INTO Temperature (location_id, day, min_temp_cel, \
-                                                        min_temp_fah, max_temp_cel, max_temp_fah) \
-                                VALUES (%s, %s, %s, %s, %s, %s) \
-                                RETURNING temperature_id',
+            self.cursor.execute(weather_db.itemperature,
                                 (*temperature_data,))
             temperature_id = self.cursor.fetchone()[0]
             self.connection.commit()
@@ -135,9 +136,7 @@ class ForecastDB:
             emoji = SQLData(arg1=emoji_d[i]['emoji']['Icon Code'],
                             arg2=emoji_d[i]['emoji']['Decoded Bytes'])
             emoji_data = dataclass_mapper(emoji, 2)
-            self.cursor.execute('INSERT INTO WeatherEmoji (icon_code, bytes) \
-                                VALUES (%s, %s) \
-                                RETURNING emoji_id',
+            self.cursor.execute(weather_db.iweatheremoji,
                                 (*emoji_data,))
             emoji_id = self.cursor.fetchone()[0]
             self.connection.commit()
@@ -155,12 +154,8 @@ class ForecastDB:
                 arg6=hour_data[j]['conditions']
             )
             hourly_data = dataclass_mapper(hourly, 6)
-            self.cursor.execute(
-                'INSERT INTO Hourly (temperature_id, hour, temp_cel, temp_fah, humidity, conditions) '
-                'VALUES (%s, %s, %s, %s, %s, %s) '
-                'RETURNING hourly_id',
-                (*hourly_data,)
-            )
+            self.cursor.execute(weather_db.ihourly,
+                                (*hourly_data,))
             hourly_id = self.cursor.fetchone()[0]
             self.connection.commit()
         #** Hourly Table Executed**
@@ -183,9 +178,8 @@ class ForecastDB:
 
 
 def main():
-    config = ForecastDB.load_json('config.json')
-    sql_params = list(map(lambda i: config.get(i, ''), config))[-4:]
-    weather_db = ForecastDB(sql_params)
+    config = list(ForecastDB.get_config().values())[-4:]
+    weather_db = ForecastDB(config)
 
 
 if __name__ == '__main__':
