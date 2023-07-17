@@ -126,24 +126,6 @@ class ForecastDB:
             temperature_id = self.cursor.fetchone()[0]
             self.connection.commit()
             #** Locations Table Executed**
-        
-            #**Executing Hourly Table**
-            hour_data = data[i]['day']['hourly_data']
-            hourly = SQLData(arg1=temperature_id,
-                            arg2=hour_data[i]['hour'],
-                            arg3=hour_data[i]['temperature']['Celcius'],
-                            arg4=hour_data[i]['temperature']['Fahrenheit'],
-                            arg5=hour_data[i]['humidity'],
-                            arg6=hour_data[i]['conditions'])
-            hourly_data = dataclass_mapper(hourly, 6)
-            self.cursor.execute('INSERT INTO Hourly (temperature_id, hour, temp_cel, \
-                                                    temp_fah, humidity, conditions) \
-                                VALUES (%s, %s, %s, %s, %s, %s) \
-                                RETURNING hourly_id',
-                                (*hourly_data,))
-            hourly_id = self.cursor.fetchone()[0]
-            self.connection.commit()
-            #** Hourly Table Executed**
             
             #**Executing WeatherEmoji Table**
             emoji_d = data[i]['day']['hourly_data']
@@ -157,6 +139,28 @@ class ForecastDB:
             emoji_id = self.cursor.fetchone()[0]
             self.connection.commit()
             #** WeatherEmoji Table Executed**
+        
+        #**Executing Hourly Table**
+        hour_data = data[i]['day']['hourly_data']
+        for j in range(24):  # Iterate over 24 hours
+            hourly = SQLData(
+                arg1=temperature_id,
+                arg2=hour_data[j]['hour'],
+                arg3=hour_data[j]['temperature']['Celcius'],
+                arg4=hour_data[j]['temperature']['Fahrenheit'],
+                arg5=hour_data[j]['humidity'],
+                arg6=hour_data[j]['conditions']
+            )
+            hourly_data = dataclass_mapper(hourly, 6)
+            self.cursor.execute(
+                'INSERT INTO Hourly (temperature_id, hour, temp_cel, temp_fah, humidity, conditions) '
+                'VALUES (%s, %s, %s, %s, %s, %s) '
+                'RETURNING hourly_id',
+                (*hourly_data,)
+            )
+            hourly_id = self.cursor.fetchone()[0]
+            self.connection.commit()
+        #** Hourly Table Executed**
 
     def close_db(self):
         if self.connection:
@@ -183,38 +187,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
-#TODO:
-
-# **Table: Locations**
-
-# | location_id | location_name         | longitude | latitude |
-# |-------------|-----------------------|-----------|----------|
-# | 1           | New York, NY, USA     | -74.0071  | 40.7146  |
-
-# **Table: Temperature**
-
-# | temperature_id | location_id | date       | min_temp_cel | min_temp_fah | max_temp_cel | max_temp_fah |
-# |----------------|-------------|------------|--------------|--------------|--------------|--------------|
-# | 1              | 1           | 2023-07-15 | 22.3         | 72.14        | 31.6         | 88.88        |
-# | 2              | 1           | 2023-07-16 | 22.3         | 72.14        | 31.6         | 88.88        |
-
-# **Table: Hourly**
-
-# | hourly_id | temperature_id | hour      | temp_cel | temp_fah | humidity | conditions |
-# |-----------|----------------|-----------|----------|----------|----------|------------|
-# | 1         | 1              | 00:00:00  | 22.8     | 73.04    | 88       | Rain       |
-# | 2         | 1              | 01:00:00  | ...      | ...      | ...      | ...        |
-# | ...       | ...            | ...       | ...      | ...      | ...      | ...        |
-# | 25        | 1              | 23:00:00  | ...      | ...      | ...      | ...        |
-# | 26        | 2              | 00:00:00  | 25.6     | 78.08    | ...      | ...        |
-# | 27        | 2              | 01:00:00  | ...      | ...      | ...      | ...        |
-# | ...       | ...            | ...       | ...      | ...      | ...      | ...        |
-# | 48        | 2              | 23:00:00  | ...      | ...      | ...      | ...        |
-
-# In this database structure, we have three tables: `Locations`, `Temperature`, and `Hourly`. The `Locations` table stores the location information, the `Temperature` table stores the temperature data for each day, and the `Hourly` table stores the hourly data for each day.
-
-# The tables are related using foreign key constraints. The `temperature_id` column in the `Hourly` table references the `temperature_id` column in the `Temperature` table, and the `location_id` column in the `Temperature` table references the `location_id` column in the `Locations` table.
-
-# By organizing the data in this relational database structure, you can efficiently store and retrieve the information related to locations, temperatures, and hourly data.
