@@ -52,7 +52,6 @@ The code for fetching weather forecast data has a time complexity of O(1) as wel
 The code for updating the SQL database with weather data has a time complexity of O(1) for each entry. The database operations, such as inserting location data, temperature data, and hourly data, are performed individually and do not depend on the size of the input or the number of existing entries.
 
 ## Database Tables
-Based on the JSON data you provided, here's how the relational database structure could be represented:
 
 **Table: Locations**
 
