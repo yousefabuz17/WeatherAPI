@@ -3,7 +3,6 @@ import os
 import socket
 import sys
 from base64 import b64decode, b64encode
-from copy import deepcopy
 from dataclasses import dataclass
 from pathlib import Path
 from typing import NamedTuple
@@ -245,18 +244,17 @@ class WeatherForecast(SimpleWeather):
         full_data = []
         
         class LocationInfo(NamedTuple):
-            arg1: float
-            arg2: float
+            arg1: float=None
+            arg2: float=None
         
         coordinates = LocationInfo(arg1=data['longitude'], arg2=data['latitude'])
         location_name = data['resolvedAddress']
         both_degrees = lambda c_temp: (c_temp, round((c_temp * 9 / 5) + 32, 2))  # (Celsius, Fahrenheit)
         
-        min_temp = [both_degrees(data['days'][i]['tempmin']) for i in range(min(15, len(data['days'])))]
-        min_temp = LocationInfo(arg1=min_temp[0][0], arg2=min_temp[0][1])
+        min_temp = [LocationInfo(*both_degrees(data['days'][i]['tempmin'])) for i in range(min(15, len(data['days'])))]
         
-        max_temp = [both_degrees(data['days'][i]['tempmax']) for i in range(min(15, len(data['days'])))]
-        max_temp = LocationInfo(arg1=max_temp[0][0], arg2=max_temp[0][1])
+        max_temp = [LocationInfo(*both_degrees(data['days'][i]['tempmax'])) for i in range(min(15, len(data['days'])))]
+        
         
         for i in range(min(15, len(data['days']))):
             day_data = data['days'][i]
@@ -291,10 +289,10 @@ class WeatherForecast(SimpleWeather):
                                 'latitude': element[1].arg2},
                 
                 'day': {'date': element[2],
-                        'min_temp': {'Celcius':element[3].arg1,
-                                    'Fahrenheit':element[3].arg2},
-                        'max_temp': {'Celcius':element[4].arg1,
-                                    'Fahrenheit':element[4].arg2}}
+                        'min_temp': {'Celcius':element[3][_].arg1,
+                                    'Fahrenheit':element[3][_].arg2},
+                        'max_temp': {'Celcius':element[4][_].arg1,
+                                    'Fahrenheit':element[4][_].arg2}}
                         }
             hourly_data = []
             for i in element[5]:
@@ -399,7 +397,6 @@ class WeatherIcons:
             hourly_data = item['day']['hourly_data']
             for conditions in hourly_data:
                 condition = conditions['conditions']
-                emoji = conditions['emoji']
                 best_match_ = process.extractOne(condition.lower(), list(map(lambda i: i.description, weather_conditions)), scorer=fuzz.ratio)
                 best_match = best_match_[0] if best_match_ else ""
                 conditions['conditions'] = best_match
@@ -425,7 +422,6 @@ class WeatherIcons:
         """
         data = json.loads((Path(__file__).parent.absolute() / 'Forecast_data.json').read_text())
         weather_icons = WeatherIcons()
-        codes = list({conditions['emoji'] for item in data for conditions in item['day']['hourly_data']})
         
         for _, icon_code in emoji_con.items():
             with open(Path.cwd() / 'icons' / f'{icon_code}.png', 'wb') as file: #! To view png
@@ -474,7 +470,7 @@ def main():
             forecast.full_weather_data()
             forecast.data_to_json() # Full JSON forecast data
             sql_params = map(lambda i: getattr(config, i), ['host', 'database', 'username', 'password'])
-            # weather_db = ForecastDB(sql_params)
+            weather_db = ForecastDB(sql_params)
         else:
             SimpleWeather(place).display_weather_report()
     except KeyboardInterrupt:
