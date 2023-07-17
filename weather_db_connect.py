@@ -98,6 +98,7 @@ class ForecastDB:
         def dataclass_mapper(attr, endpoint):
             return  (*map(lambda i: getattr(attr, f'arg{i}'), range(1, endpoint+1)),)
         
+        #**Executing Locations Table**
         loca_data = SQLData(arg1=data[0]['location'],
                             arg2=data[0]['coordinates']['longitude'],
                             arg3=data[0]['coordinates']['latitude'])
@@ -108,8 +109,10 @@ class ForecastDB:
                             (*location_data,))
         location_id = self.cursor.fetchone()[0]
         self.connection.commit()
+        #** Locations Table Executed**
         
-            #**Executing Locations Table**
+        
+            #**Executing Temperature Table**
         for i in range(self.days):
             temp_data = SQLData(arg1=location_id,
                                 arg2=data[i]['day']['date'],
@@ -125,7 +128,7 @@ class ForecastDB:
                                 (*temperature_data,))
             temperature_id = self.cursor.fetchone()[0]
             self.connection.commit()
-            #** Locations Table Executed**
+            #**Temperature Table Executed**
             
             #**Executing WeatherEmoji Table**
             emoji_d = data[i]['day']['hourly_data']
