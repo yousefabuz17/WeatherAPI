@@ -35,6 +35,14 @@ WIND_DIRECTIONS = {
     'WNW': 'West-northwest',
 }
 
+class ConfigInfo(NamedTuple):
+    weather_api: str
+    forecast_api: str
+    geo_api: str
+    host: str
+    database: str
+    username: str
+    password: str
 
 class SimpleWeather: #! Turn into a simple GUI
     def __init__(self, place=None):
@@ -117,6 +125,9 @@ class SimpleWeather: #! Turn into a simple GUI
             - `tuple`: A tuple containing the weather data.
         """
         data = self.get_weather()
+        if not data:
+            return None
+        
         name = data['location']['name']
         unparsed_date = data['current']['last_updated'].split()[0].split('-')
 
@@ -424,7 +435,7 @@ class WeatherIcons:
         weather_icons = WeatherIcons()
         
         for _, icon_code in emoji_con.items():
-            with open(Path.cwd() / 'icons' / f'{icon_code}.png', 'wb') as file: #! To view png
+            with open(Path(__file__).parent.absolute() / 'icons' / f'{icon_code}.png', 'wb') as file: #! To view png
                     try:
                         png_bytes = weather_icons.parse_icon_url(icon_code)
                         file.write(png_bytes)
@@ -449,15 +460,6 @@ class WeatherIcons:
 
 def main():
     global config
-    @dataclass
-    class ConfigInfo:
-        weather_api: str
-        forecast_api: str
-        geo_api: str
-        host: str
-        database: str
-        username: str
-        password: str
     
     config_file = json.load(open(Path(__file__).parent.absolute() / 'config.json', encoding='utf-8'))
     config = ConfigInfo(*config_file.values())

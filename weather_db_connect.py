@@ -43,7 +43,7 @@ class ForecastDB:
             cweatheremoji: str
         
         # weather_db = DBTables(*map(lambda i: i[i.find('('):], open(Path.cwd() / 'weather_db.sql').read().split('\n\n')))
-        weather_db = DBTables(*open(Path.cwd() / 'weather_db.sql').read().split('\n\n')[:4])
+        weather_db = DBTables(*open(Path(__file__).parent.absolute() / 'weather_db.sql').read().split('\n\n')[:4])
         @dataclass
         class SQLParams:
             host: str
