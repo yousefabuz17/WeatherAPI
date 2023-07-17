@@ -18,6 +18,7 @@ class ForecastDB:
             - `password` (str): The password for the specified user.
         """
         self.data = ForecastDB.load_json('Forecast_data.json')
+        self.days = 15
         self.config = sql_params
         self.connection = None
         self.cursor = None
@@ -108,7 +109,8 @@ class ForecastDB:
         location_id = self.cursor.fetchone()[0]
         self.connection.commit()
         
-        for i in range(15):
+            #**Executing Locations Table**
+        for i in range(self.days):
             temp_data = SQLData(arg1=location_id,
                                 arg2=data[i]['day']['date'],
                                 arg3=data[i]['day']['min_temp']['Celcius'],
@@ -123,18 +125,39 @@ class ForecastDB:
                                 (*temperature_data,))
             temperature_id = self.cursor.fetchone()[0]
             self.connection.commit()
+            #** Locations Table Executed**
+        
+            #**Executing Hourly Table**
+            hour_data = data[i]['day']['hourly_data']
+            hourly = SQLData(arg1=temperature_id,
+                            arg2=hour_data[i]['hour'],
+                            arg3=hour_data[i]['temperature']['Celcius'],
+                            arg4=hour_data[i]['temperature']['Fahrenheit'],
+                            arg5=hour_data[i]['humidity'],
+                            arg6=hour_data[i]['conditions'])
+            hourly_data = dataclass_mapper(hourly, 6)
+            self.cursor.execute('INSERT INTO Hourly (temperature_id, hour, temp_cel, \
+                                                    temp_fah, humidity, conditions) \
+                                VALUES (%s, %s, %s, %s, %s, %s) \
+                                RETURNING hourly_id',
+                                (*hourly_data,))
+            hourly_id = self.cursor.fetchone()[0]
+            self.connection.commit()
+            #** Hourly Table Executed**
+            
+            #**Executing WeatherEmoji Table**
+            emoji_d = data[i]['day']['hourly_data']
+            emoji = SQLData(arg1=emoji_d[i]['emoji']['Icon Code'],
+                            arg2=emoji_d[i]['emoji']['Decoded Bytes'])
+            emoji_data = dataclass_mapper(emoji, 2)
+            self.cursor.execute('INSERT INTO WeatherEmoji (icon_code, bytes) \
+                                VALUES (%s, %s) \
+                                RETURNING emoji_id',
+                                (*emoji_data,))
+            emoji_id = self.cursor.fetchone()[0]
+            self.connection.commit()
+            #** WeatherEmoji Table Executed**
 
-
-    # def get_table_contents(self):
-    #     for day in range(15):
-    #         self.cursor.execute(f"SELECT * FROM {table_name}")
-    #         rows = self.cursor.fetchall()
-    #         print(f"Contents of table {table_name}:")
-    #         for row in rows:
-    #             print(row)
-    #         print()
-
-    
     def close_db(self):
         if self.connection:
             try:
