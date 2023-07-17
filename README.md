@@ -50,6 +50,42 @@ The code for fetching weather forecast data has a time complexity of O(1) as wel
 
 ### ```Database Operations```:
 The code for updating the SQL database with weather data has a time complexity of O(1) for each entry. The database operations, such as inserting location data, temperature data, and hourly data, are performed individually and do not depend on the size of the input or the number of existing entries.
+
+## Database Tables
+Based on the JSON data you provided, here's how the relational database structure could be represented:
+
+**Table: Locations**
+
+| location_id | location_name         | longitude | latitude |
+|-------------|-----------------------|-----------|----------|
+| 1           | New York, NY, USA     | -74.0071  | 40.7146  |
+
+**Table: Temperature**
+
+| temperature_id | location_id | date       | min_temp_cel | min_temp_fah | max_temp_cel | max_temp_fah |
+|----------------|-------------|------------|--------------|--------------|--------------|--------------|
+| 1              | 1           | 2023-07-15 | 22.3         | 72.14        | 31.6         | 88.88        |
+| 2              | 1           | 2023-07-16 | 22.3         | 72.14        | 31.6         | 88.88        |
+
+**Table: Hourly**
+
+| hourly_id | temperature_id | hour      | temp_cel | temp_fah | humidity | conditions |
+|-----------|----------------|-----------|----------|----------|----------|------------|
+| 1         | 1              | 00:00:00  | 22.8     | 73.04    | 88       | Rain       |
+| 2         | 1              | 01:00:00  | ...      | ...      | ...      | ...        |
+| ...       | ...            | ...       | ...      | ...      | ...      | ...        |
+| 25        | 1              | 23:00:00  | ...      | ...      | ...      | ...        |
+| 26        | 2              | 00:00:00  | 25.6     | 78.08    | ...      | ...        |
+| 27        | 2              | 01:00:00  | ...      | ...      | ...      | ...        |
+| ...       | ...            | ...       | ...      | ...      | ...      | ...        |
+| 48        | 2              | 23:00:00  | ...      | ...      | ...      | ...        |
+
+**Note: The ellipsis (...) represents the remaining rows of hourly data for each day.*
+
+In this database structure, we have three tables: `Locations`, `Temperature`, and `Hourly`. The `Locations` table stores the location information, the `Temperature` table stores the temperature data for each day, and the `Hourly` table stores the hourly data for each day.
+
+The tables are related using foreign key constraints. The `temperature_id` column in the `Hourly` table references the `temperature_id` column in the `Temperature` table, and the `location_id` column in the `Temperature` table references the `location_id` column in the `Locations` table.
+
 ## Progress
 - [x] Simple Weather
 - [x] Weather Forecast
