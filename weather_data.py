@@ -464,26 +464,28 @@ def main():
     config_file = json.load(open(Path(__file__).parent.absolute() / 'config.json', encoding='utf-8'))
     config = ConfigInfo(*config_file.values())
     
+    def start_forecast(place):
+        forecast = WeatherForecast(place)
+        forecast.full_weather_data()
+        forecast.data_to_json() # Full JSON forecast data
+        sql_params = map(lambda i: getattr(config, i), ['host', 'database', 'username', 'password'])
+        ForecastDB(sql_params)
+    
     try:
-        simple_weather = input("\nWould you like a simple weather report? (y/n): ")
+        simple_weather = input("\nWould you like a simple weather report? (y/n): ").lower()
         place = input("Enter a location (leave empty for current location): ")
-        if simple_weather == 'n':
-            forecast = WeatherForecast(place)
-            forecast.full_weather_data()
-            forecast.data_to_json() # Full JSON forecast data
-            sql_params = map(lambda i: getattr(config, i), ['host', 'database', 'username', 'password'])
-            weather_db = ForecastDB(sql_params)
+        if simple_weather in ['no', 'n']:
+            start_forecast(place)
         else:
             SimpleWeather(place).display_weather_report()
     except KeyboardInterrupt:
         try:
             again = input("\nWould you like to try again?\nEnter a location (leave empty for current location):")
-            WeatherForecast(again)
+            start_forecast(again)
         except:
             print('\nProgram Terminated')
             sys.exit(0)
     except Exception as e:
-        raise e
         print("An unexpected error occurred.", e)
         sys.exit(1)
 
