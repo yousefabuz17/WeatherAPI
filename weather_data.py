@@ -3,6 +3,7 @@ import os
 import socket
 import sys
 from base64 import b64decode, b64encode
+from copy import deepcopy
 from dataclasses import dataclass
 from pathlib import Path
 from typing import NamedTuple
@@ -10,6 +11,7 @@ from typing import NamedTuple
 import geocoder
 import requests
 from bs4 import BeautifulSoup
+from collections import OrderedDict
 from rapidfuzz import fuzz, process
 
 from emojis import simple_weather_emojis as e
@@ -388,8 +390,11 @@ class WeatherIcons:
             - `data` (list): The weather data to be modified.
             - `condition` (str, optional): The specific condition to modify. Defaults to None.
         """
+        global emoji_con
+        
         weather_conditions = WeatherConditons().scrape_data()
         unpacked = list(map(lambda i: [i.icon_code, i.description], weather_conditions))
+        emoji_con = {}
         for item in data:
             hourly_data = item['day']['hourly_data']
             for conditions in hourly_data:
@@ -399,12 +404,15 @@ class WeatherIcons:
                 best_match = best_match_[0] if best_match_ else ""
                 conditions['conditions'] = best_match
                 conditions['emoji'] = list(filter(lambda i: i[0] if i[1]==best_match else '', unpacked))[0][0] # [['03d', 'Scattered Clouds']] --> '03d' --> b'PNG' (after using modify_emoji)
+                emoji_con[conditions['conditions']] = conditions['emoji']
         try:
             SimpleWeather.dump_json(data)
         except OSError as e:
             print("Error: Failed to write JSON data.", e)
             raise SystemExit
-        WeatherIcons.modify_emoji()
+        finally:
+            emoji_con = OrderedDict(sorted(emoji_con.items()))
+            WeatherIcons.modify_emoji()
         return
 
     @staticmethod
@@ -419,20 +427,21 @@ class WeatherIcons:
         weather_icons = WeatherIcons()
         codes = list({conditions['emoji'] for item in data for conditions in item['day']['hourly_data']})
         
-        for i in range(len(codes)):
-            with open(Path.cwd() / 'icons' / f'{codes[i]}.png', 'wb') as file: #! To view png
-                try:
-                    png_bytes = weather_icons.parse_icon_url(codes[i])
-                    file.write(png_bytes)
-                    for item in data:
-                        hourly_data = item['day']['hourly_data']
-                        for conditions in hourly_data:
-                            conditions['emoji'] = {'Icon Code':codes[i],
-                                                    'Decoded Bytes':b64encode(png_bytes).decode('utf-8')}
-                                                    # encode back for bytes
-                except OSError as e:
-                    print("Error: Failed to write icon data.", e)
-                    raise SystemExit
+        for _, icon_code in emoji_con.items():
+            with open(Path.cwd() / 'icons' / f'{icon_code}.png', 'wb') as file: #! To view png
+                    try:
+                        png_bytes = weather_icons.parse_icon_url(icon_code)
+                        file.write(png_bytes)
+                        for item in data:
+                            hourly_data = item['day']['hourly_data']
+                            for conditions in hourly_data:
+                                if emoji_con.get(conditions['conditions']) == icon_code:
+                                    conditions['emoji'] = {'Icon Code':icon_code,
+                                                            'Decoded Bytes':b64encode(png_bytes).decode('utf-8')}
+                                                            # encode back for bytes
+                    except OSError as e:
+                        print("Error: Failed to write icon data.", e)
+                        raise SystemExit
         try:
             SimpleWeather.dump_json(data)
         except OSError as e:
@@ -465,7 +474,7 @@ def main():
             forecast.full_weather_data()
             forecast.data_to_json() # Full JSON forecast data
             sql_params = map(lambda i: getattr(config, i), ['host', 'database', 'username', 'password'])
-            weather_db = ForecastDB(sql_params)
+            # weather_db = ForecastDB(sql_params)
         else:
             SimpleWeather(place).display_weather_report()
     except KeyboardInterrupt:
