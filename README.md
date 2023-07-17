@@ -94,7 +94,7 @@ The tables are related using foreign key constraints. The `temperature_id` colum
 - [ ] Predictive Model
 - [x] SQL DB integration
     - [x] Postgresql
-    - [x] Updates DB each run with new data
+    - [x] Updates DB each run with new data while storing old data for predicitve modeling
 - [x] Exception Handling
 
 
