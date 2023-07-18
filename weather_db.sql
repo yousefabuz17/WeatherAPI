@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS Locations (
     location_id SERIAL PRIMARY KEY,
-    location_name VARCHAR(255),
+    location_name VARCHAR(255) UNIQUE,
     longitude DECIMAL(6, 4),
     latitude DECIMAL(6, 4)
 );
@@ -48,3 +48,8 @@ RETURNING hourly_id;
 INSERT INTO WeatherEmoji (icon_code, bytes)
 VALUES (%s, %s)
 RETURNING emoji_id;
+
+SELECT t.day, t.min_temp_cel, t.min_temp_fah, t.max_temp_cel, t.max_temp_fah,
+        h.hour, h.temp_cel, h.temp_fah, h.humidity, h.conditions
+FROM Temperature t
+JOIN Hourly h ON t.temperature_id = h.temperature_id;
