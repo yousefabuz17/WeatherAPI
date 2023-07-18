@@ -62,7 +62,7 @@ class ForecastDB:
     def sql_connect(self, config_):
         global weather_db
         
-        weather_db = DBTables(*open(Path(__file__).parent.absolute() / 'weather_db.sql').read().split('\n\n')) #All SQL create table scripts
+        weather_db = DBTables(*open(Path(__file__).parent.absolute() / 'weather_db.sql').read().split('\n\n')[:8]) #All SQL create table scripts
         config = SQLParams(*config_)
         
         try:
