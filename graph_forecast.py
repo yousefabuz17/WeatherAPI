@@ -50,6 +50,7 @@ class DBConnect:
                 self.graph_data(col_data)
                 # self.linear_regression(col_data)
         except (psycopg2.Error, FileNotFoundError) as e:
+            raise e
             print(f"An error occurred during database connection: {e}")
             raise SystemExit
 
@@ -57,20 +58,31 @@ class DBConnect:
         columns = self.get_columns(sql_script.arg1)
         execute_ = sql_script.arg1
         self.cursor.execute(execute_)
-        data = self.cursor.fetchall()
-        col_data = Args(arg1=columns, arg2=data)
+        rows = self.cursor.fetchall()
+        col_data = Args(arg1=rows, arg2=columns)
         return col_data
 
     def graph_data(self, col_data):
-        df = pd.DataFrame(col_data.arg2, columns=col_data.arg1)
-        print(df)
+        rows = col_data.arg1
+        columns = col_data.arg2
 
+        #Instance of all days merged with its correlating data for predidictive modeling
+        merged_days_data = []
+        for days in rows:
+            merged_days_data.extend(days)
+
+        df = pd.DataFrame(rows, columns=columns)
+
+        print(df)  # For demonstration purposes
+
+        
     def linear_regression(self, data):
         pass
     
     @staticmethod
     def get_columns(sql):
-        return list(i for i in map(lambda i: i.replace('.',''), re.findall(r'\.\w+', sql)) if not i.endswith('id'))
+        #**Fetching columns based on script rather hard coding for practice
+        return filter(lambda i: not i.endswith('id') and 's' not in i, map(lambda i: i.replace('.',''), re.findall(r'\.\w+', sql)))
 
     def __del__(self):
         if self.cursor:

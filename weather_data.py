@@ -162,7 +162,6 @@ class SimpleWeather: #! Turn into a simple GUI
 
         date_ = parse_date(unparsed_date)
         date = f'{date_.month}/{date_.day}/{date_.year}'
-        print(date)
         condition = data['current']['condition']['text']
         f_degrees = data['current']['temp_f']
         feels_like = data['current']['feelslike_f']
