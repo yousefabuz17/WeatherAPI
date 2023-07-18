@@ -1,18 +1,18 @@
 CREATE TABLE IF NOT EXISTS Locations (
     location_id SERIAL PRIMARY KEY,
-    location_name VARCHAR(255) UNIQUE,
-    longitude DECIMAL(6, 4),
-    latitude DECIMAL(6, 4)
+    location_name VARCHAR(255),
+    longitude DECIMAL(7, 3),
+    latitude DECIMAL(7, 3)
 );
 
 CREATE TABLE IF NOT EXISTS Temperature (
     temperature_id SERIAL PRIMARY KEY,
     location_id INTEGER,
     day DATE,
-    min_temp_cel DECIMAL(5, 2),
-    min_temp_fah DECIMAL(5, 2),
-    max_temp_cel DECIMAL(5, 2),
-    max_temp_fah DECIMAL(5, 2),
+    min_temp_cel DECIMAL(7, 3),
+    min_temp_fah DECIMAL(7, 3),
+    max_temp_cel DECIMAL(7, 3),
+    max_temp_fah DECIMAL(7, 3),
     FOREIGN KEY (location_id) REFERENCES Locations (location_id)
 );
 
@@ -20,8 +20,8 @@ CREATE TABLE IF NOT EXISTS Hourly (
     hourly_id SERIAL PRIMARY KEY,
     temperature_id INTEGER,
     hour TIME,
-    temp_cel DECIMAL(5, 2),
-    temp_fah DECIMAL(5, 2),
+    temp_cel DECIMAL(7, 3),
+    temp_fah DECIMAL(7, 3),
     humidity INTEGER,
     conditions VARCHAR(255),
     FOREIGN KEY (temperature_id) REFERENCES Temperature (temperature_id)
@@ -29,7 +29,8 @@ CREATE TABLE IF NOT EXISTS Hourly (
 
 CREATE TABLE IF NOT EXISTS WeatherEmoji (
     emoji_id SERIAL PRIMARY KEY,
-    icon_code VARCHAR(255),
+    description VARCHAR(255),
+    icon_code VARCHAR(255) UNIQUE,
     bytes BYTEA
 );
 
@@ -45,8 +46,8 @@ INSERT INTO Hourly (temperature_id, hour, temp_cel, temp_fah, humidity, conditio
 VALUES (%s, %s, %s, %s, %s, %s)
 RETURNING hourly_id;
 
-INSERT INTO WeatherEmoji (icon_code, bytes)
-VALUES (%s, %s)
+INSERT INTO WeatherEmoji (description, icon_code, bytes)
+VALUES (%s, %s, %s)
 RETURNING emoji_id;
 
 SELECT t.day, t.min_temp_cel, t.min_temp_fah, t.max_temp_cel, t.max_temp_fah,

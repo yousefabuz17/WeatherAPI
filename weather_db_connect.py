@@ -1,6 +1,7 @@
 import json
 from dataclasses import dataclass
 from pathlib import Path
+from psycopg2 import errors
 from typing import NamedTuple
 
 import psycopg2
@@ -130,17 +131,22 @@ class ForecastDB:
             temperature_id = self.cursor.fetchone()[0]
             self.connection.commit()
             #**Temperature Table Executed**
-            
+
             #**Executing WeatherEmoji Table**
             emoji_d = data[i]['day']['hourly_data']
-            emoji = SQLData(arg1=emoji_d[i]['emoji']['Icon Code'],
-                            arg2=emoji_d[i]['emoji']['Decoded Bytes'])
-            emoji_data = dataclass_mapper(emoji, 2)
-            self.cursor.execute(weather_db.iweatheremoji,
+            emoji = SQLData(arg1=emoji_d[i]['emoji']['Description'],
+                            arg2=emoji_d[i]['emoji']['Icon Code'],
+                            arg3=emoji_d[i]['emoji']['Decoded Bytes'])
+            emoji_data = dataclass_mapper(emoji, 3)
+            try:
+                self.cursor.execute(weather_db.iweatheremoji,
                                 (*emoji_data,))
-            emoji_id = self.cursor.fetchone()[0]
-            self.connection.commit()
-            #** WeatherEmoji Table Executed**
+                emoji_id = self.cursor.fetchone()[0]
+            
+            except errors.UniqueViolation:
+                # print('[IGNORE] Skipping duplicate Icon codes (WeatherIcons)', flush=True)
+                self.connection.commit()
+                #** WeatherEmoji Table Executed**
         
         #**Executing Hourly Table**
         hour_data = data[i]['day']['hourly_data']
@@ -159,6 +165,7 @@ class ForecastDB:
             hourly_id = self.cursor.fetchone()[0]
             self.connection.commit()
         #** Hourly Table Executed**
+            
 
     def close_db(self):
         if self.connection:

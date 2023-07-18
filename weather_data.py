@@ -49,7 +49,7 @@ class LocationInfo(NamedTuple):
     arg2: float=None
 
 @dataclass
-class WeatherConditions:
+class ConditionInfo:
     icon_code: str
     description: str
 
@@ -338,7 +338,7 @@ class WeatherForecast(SimpleWeather):
         except OSError as e:
             print("Error: Failed to write JSON data.", e)
             raise SystemExit
-        clean_data = WeatherIcons.modify_condition(clean_data)
+        clean_data = WeatherConditons.modify_condition(clean_data)
         return clean_data
 
 
@@ -366,34 +366,12 @@ class WeatherConditons:
                     for _, _ in enumerate(cells):
                         icon_code = cells[0].text.strip()[:3]
                         description = cells[-1].text.strip().title()
-                    data.append(WeatherConditions(icon_code=icon_code, description=description))
+                    data.append(ConditionInfo(icon_code=icon_code, description=description))
             return data
         except requests.RequestException as e:
             print("Error: Failed to fetch weather conditions data.", e)
             raise SystemExit
-
-class WeatherIcons:
-    def __init__(self):
-        self.base_url = 'https://openweathermap.org/img/wn/{}@2x.png'
     
-    def parse_icon_url(self, icon_code):
-        """
-        Parse the icon URL and retrieve the icon data.
-
-        Parameters:
-            - `icon_code` (str): The code of the weather icon.
-
-        Returns:
-            - `bytes`: The content of the icon image.
-        """
-        try:
-            response = requests.get(self.base_url.format(icon_code))
-            response.raise_for_status()
-            return response.content
-        except requests.RequestException as e:
-            print("Error: Failed to fetch icon data.", e)
-            raise SystemExit
-
     @staticmethod
     def modify_condition(data, condition=None):
         """
@@ -429,11 +407,33 @@ class WeatherIcons:
             raise SystemExit
         finally:
             emoji_con = OrderedDict(sorted(emoji_con.items()))
-            WeatherIcons.modify_emoji()
+            WeatherIcons.modify_icons()
         return
 
+class WeatherIcons:
+    def __init__(self):
+        self.base_url = 'https://openweathermap.org/img/wn/{}@2x.png'
+    
+    def parse_icon_url(self, icon_code):
+        """
+        Parse the icon URL and retrieve the icon data.
+
+        Parameters:
+            - `icon_code` (str): The code of the weather icon.
+
+        Returns:
+            - `bytes`: The content of the icon image.
+        """
+        try:
+            response = requests.get(self.base_url.format(icon_code))
+            response.raise_for_status()
+            return response.content
+        except requests.RequestException as e:
+            print("Error: Failed to fetch icon data.", e)
+            raise SystemExit
+
     @staticmethod
-    def modify_emoji():
+    def modify_icons():
         """
         Modify the weather emoji in the data and save the icons.
 
@@ -442,7 +442,6 @@ class WeatherIcons:
         """
         data = json.loads((Path(__file__).parent.absolute() / 'Forecast_data.json').read_text())
         weather_icons = WeatherIcons()
-        
         for _, icon_code in emoji_con.items():
             with open(Path(__file__).parent.absolute() / 'icons' / f'{icon_code}.png', 'wb') as file: #! To view png
                     try:
@@ -452,7 +451,8 @@ class WeatherIcons:
                             hourly_data = item['day']['hourly_data']
                             for conditions in hourly_data:
                                 if emoji_con.get(conditions['conditions']) == icon_code:
-                                    conditions['emoji'] = {'Icon Code':icon_code,
+                                    conditions['emoji'] = {'Description': conditions['conditions'],
+                                                            'Icon Code':icon_code,
                                                             'Decoded Bytes':b64encode(png_bytes).decode('utf-8')}
                                                             # encode back for bytes
                     except OSError as e:
@@ -492,6 +492,7 @@ def main():
             print('\nProgram Terminated')
             sys.exit(0)
     except Exception as e:
+        raise e
         print("An unexpected error occurred.", e)
         sys.exit(1)
 
