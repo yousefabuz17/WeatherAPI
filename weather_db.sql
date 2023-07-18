@@ -1,18 +1,18 @@
 CREATE TABLE IF NOT EXISTS Locations (
     location_id SERIAL PRIMARY KEY,
     location_name VARCHAR(255),
-    longitude DECIMAL(7, 3),
-    latitude DECIMAL(7, 3)
+    longitude DECIMAL(9, 6),
+    latitude DECIMAL(9, 6)
 );
 
 CREATE TABLE IF NOT EXISTS Temperature (
     temperature_id SERIAL PRIMARY KEY,
     location_id INTEGER,
     day DATE,
-    min_temp_cel DECIMAL(7, 3),
-    min_temp_fah DECIMAL(7, 3),
-    max_temp_cel DECIMAL(7, 3),
-    max_temp_fah DECIMAL(7, 3),
+    min_temp_cel DECIMAL(4, 2),
+    min_temp_fah DECIMAL(4, 2),
+    max_temp_cel DECIMAL(4, 2),
+    max_temp_fah DECIMAL(4, 2),
     FOREIGN KEY (location_id) REFERENCES Locations (location_id)
 );
 
@@ -50,8 +50,9 @@ INSERT INTO WeatherEmoji (description, icon_code, bytes)
 VALUES (%s, %s, %s)
 RETURNING emoji_id;
 
-SELECT t.day, h.hour, h.temp_cel, h.temp_fah, h.humidity, h.condition
-FROM Temperature t
+SELECT l.location_name, TO_CHAR(t.day, 'MM/DD/YYYY'), h.hour, h.temp_cel, h.temp_fah, h.humidity, h.condition
+FROM Locations l
+JOIN Temperature t ON l.location_id = t.location_id
 JOIN (
     SELECT temperature_id, array_agg(hour) AS hours, array_agg(temp_cel) AS temps_cel,
             array_agg(temp_fah) AS temps_fah, array_agg(humidity) AS humidities,

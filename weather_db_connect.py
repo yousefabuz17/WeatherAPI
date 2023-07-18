@@ -64,7 +64,8 @@ class ForecastDB:
     def sql_connect(self, config_):
         global weather_db
         
-        weather_db = DBTables(*open(Path(__file__).parent.absolute() / 'weather_db.sql').read().split('\n\n')[:8]) #All SQL create table scripts
+        #**All SQL create table scripts
+        weather_db = DBTables(*open(Path(__file__).parent.absolute() / 'weather_db.sql').read().split('\n\n')[:8])
         config = SQLParams(*config_)
         
         try:
@@ -116,6 +117,7 @@ class ForecastDB:
         self.connection.commit()
         # ** Locations Table Executed**
 
+        
         for i in range(self.days):
             # **Executing Temperature Table**
             temp_data = SQLData(arg1=location_id,
@@ -176,7 +178,7 @@ class ForecastDB:
             print("Database Updated Successfully")
         if self.connection:
             self.connection.close()
-            print("Database Closed")
+            print("Database Server Closed")
     
     def __del__(self):
         self.close_db()

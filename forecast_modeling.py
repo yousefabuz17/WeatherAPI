@@ -32,11 +32,14 @@ class Args:
 
 
 class DBConnect:
-    def __init__(self):
+    def __init__(self, sql_script=None):
+        self.sql_script = sql_script
         self.connection = None
         self.cursor = None
+        self.database = None
+        self.validator()
 
-    def sql_connect(self, sql_script):
+    def sql_connect(self):
         config = SQLParams(*list(WeatherForecast.get_config().values())[-4:])
         try:
             with psycopg2.connect(
@@ -46,38 +49,41 @@ class DBConnect:
                                 password=config.password
                                 ) as self.connection:
                 self.cursor = self.connection.cursor()
-                col_data = self.query_data(sql_script)
-                self.graph_data(col_data)
-                # self.linear_regression(col_data)
+                self.database = self.query_data()
         except (psycopg2.Error, FileNotFoundError) as e:
             raise e
             print(f"An error occurred during database connection: {e}")
             raise SystemExit
 
-    def query_data(self, sql_script):
-        columns = self.get_columns(sql_script.arg1)
-        execute_ = sql_script.arg1
+    def query_data(self):
+        columns = self.get_columns(self.sql_script.arg1)
+        execute_ = self.sql_script.arg1
         self.cursor.execute(execute_)
         rows = self.cursor.fetchall()
         col_data = Args(arg1=rows, arg2=columns)
-        return col_data
+        return col_data #**Returns full database including columns
+    
+    def __repr__(self): #**Returns full database in a DataFrame
+        try:
+            rows = self.database.arg1
+            columns = self.database.arg2
+            df = pd.DataFrame(rows, columns=columns)
+            return df.__repr__()  # For demonstration purposes
+        except AttributeError:
+            return 'No database found'
 
-    def graph_data(self, col_data):
-        rows = col_data.arg1
-        columns = col_data.arg2
+    def validator(self):
+        try: self.sql_connect()
+        except AttributeError: return 'No database found'
 
-        #Instance of all days merged with its correlating data for predidictive modeling
-        merged_days_data = []
-        for days in rows:
-            merged_days_data.extend(days)
-
-        df = pd.DataFrame(rows, columns=columns)
-
-        print(df)  # For demonstration purposes
-
-        
-    def linear_regression(self, data):
-        pass
+    def group_location(self, id_=None): #? Predictive testing for each location
+        columns = self.get_columns(self.sql_script.arg1)
+        sql_script = f'{self.sql_script.arg1[:-1]}\nWHERE l.location_id = \'{id_}\''
+        self.cursor.execute(sql_script)
+        rows = self.cursor.fetchall()
+        data = Args(arg1=rows, arg2=columns)
+        df = pd.DataFrame(data.arg1, columns=data.arg2)
+        return df
     
     @staticmethod
     def get_columns(sql):
@@ -91,8 +97,8 @@ class DBConnect:
 
 def main():
     sql_script = SQLFetch(open(Path(__file__).parent.absolute() / 'weather_db.sql').read().split('\n\n')[-1])
-    db = DBConnect()
-    db.sql_connect(sql_script)
+    database = DBConnect()
+    print(database)
 
 
 if __name__ == '__main__':
