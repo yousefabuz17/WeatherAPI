@@ -50,7 +50,14 @@ INSERT INTO WeatherEmoji (description, icon_code, bytes)
 VALUES (%s, %s, %s)
 RETURNING emoji_id;
 
-SELECT t.day, t.min_temp_cel, t.min_temp_fah, t.max_temp_cel, t.max_temp_fah,
-        h.hour, h.temp_cel, h.temp_fah, h.humidity, h.conditions
+SELECT t.day, h.hour, h.temp_cel, h.temp_fah, h.humidity, h.condition
 FROM Temperature t
-JOIN Hourly h ON t.temperature_id = h.temperature_id;
+JOIN (
+    SELECT temperature_id, array_agg(hour) AS hours, array_agg(temp_cel) AS temps_cel,
+            array_agg(temp_fah) AS temps_fah, array_agg(humidity) AS humidities,
+            array_agg(conditions) AS conditions
+    FROM Hourly
+    GROUP BY temperature_id
+) h_agg ON t.temperature_id = h_agg.temperature_id
+CROSS JOIN UNNEST(h_agg.hours, h_agg.temps_cel, h_agg.temps_fah, h_agg.humidities, h_agg.conditions)
+    AS h(hour, temp_cel, temp_fah, humidity, condition);
