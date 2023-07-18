@@ -53,6 +53,13 @@ class WeatherConditions:
     icon_code: str
     description: str
 
+@dataclass
+class ParsedDate:
+    year: str
+    month: str
+    day: str
+
+
 class SimpleWeather: #! Turn into a simple GUI
     def __init__(self, place=None):
         """
@@ -147,17 +154,15 @@ class SimpleWeather: #! Turn into a simple GUI
             Returns:
                 - `ParsedDate`: A named tuple containing the year, month, and day components.
             """
-            @dataclass
-            class ParsedDate:
-                year: str
-                month: str
-                day: str
+
             try: year, month, day = date_str.split('-')
             except (ValueError, AttributeError): year, month, day = '-'.join(date_str).split('-')
             
             return ParsedDate(year, month, day)
 
-        date = parse_date(unparsed_date)
+        date_ = parse_date(unparsed_date)
+        date = f'{date_.month}/{date_.day}/{date_.year}'
+        print(date)
         condition = data['current']['condition']['text']
         f_degrees = data['current']['temp_f']
         feels_like = data['current']['feelslike_f']
@@ -190,7 +195,7 @@ class SimpleWeather: #! Turn into a simple GUI
         
         name, date, condition, f_degrees, feels_like, wind_mph, wind_dir, humidity, emoji = weather_data
         print(
-            f'''\n \033[4;5;36;1mWeather Report for {name}\033[0m       \033[1;2m[Last Updated: {date.month}/{date.day}/{date.year}]\033[0m\n
+            f'''\n \033[4;5;36;1mWeather Report for {name}\033[0m       \033[1;2m[Last Updated: {date}]\033[0m\n
             \033[1;31mTemperature:\033[0m {f_degrees}°F, but feels like {feels_like}°F
             \033[1;31mWind Speed:\033[0m {wind_mph} mph
             \033[1;31mWind Direction:\033[0m {wind_dir} ({WIND_DIRECTIONS.get(wind_dir, '')})
@@ -278,15 +283,15 @@ class WeatherForecast(SimpleWeather):
         
         for i in range(min(15, len(data['days']))):
             day_data = data['days'][i]
-            day = day_data['datetime']
+            date_ = ParsedDate(*day_data['datetime'].split('-'))
+            date = f'{date_.month}/{date_.day}/{date_.year}'
             hours = [day_data['hours'][idx]['datetime'] for idx in range(24)]
             humidity = [round(day_data['hours'][idx]['humidity']) for idx in range(24)]
             conditions = [[day_data['hours'][idx]['conditions'], ''] for idx in range(24)]
             hourly_temp = [LocationInfo(*both_degrees(day_data['hours'][idx]['temp'])) for idx in range(24)]
-            
             all_data = zip(hours, hourly_temp, humidity, conditions)
             day_full_data = list(all_data)
-            full_data.append((location_name, coordinates, day, min_temp, max_temp, day_full_data))
+            full_data.append((location_name, coordinates, date, min_temp, max_temp, day_full_data))
         return full_data
 
     def data_to_json(self, data=None):

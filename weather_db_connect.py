@@ -31,6 +31,7 @@ class SQLData:
     arg5: str=None
     arg6: str=None
 
+
 class ForecastDB:
     def __init__(self, config: list):
         """
@@ -114,7 +115,6 @@ class ForecastDB:
         location_id = self.cursor.fetchone()[0]
         self.connection.commit()
         #** Locations Table Executed**
-        
         
             #**Executing Temperature Table**
         for i in range(self.days):
