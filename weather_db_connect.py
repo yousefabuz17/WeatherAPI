@@ -1,12 +1,10 @@
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from psycopg2 import errors
 from typing import NamedTuple
 
 import psycopg2
-
-
+from psycopg2 import errors
 
 class SQLParams(NamedTuple):
     host: str

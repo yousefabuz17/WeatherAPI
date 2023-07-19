@@ -20,8 +20,8 @@ CREATE TABLE IF NOT EXISTS Hourly (
     hourly_id SERIAL PRIMARY KEY,
     temperature_id INTEGER,
     hour TIME,
-    temp_cel DECIMAL(7, 3),
-    temp_fah DECIMAL(7, 3),
+    temp_cel DECIMAL(4, 3),
+    temp_fah DECIMAL(4, 3),
     humidity INTEGER,
     conditions VARCHAR(255),
     FOREIGN KEY (temperature_id) REFERENCES Temperature (temperature_id)
@@ -50,15 +50,14 @@ INSERT INTO WeatherEmoji (description, icon_code, bytes)
 VALUES (%s, %s, %s)
 RETURNING emoji_id;
 
-SELECT l.location_name, TO_CHAR(t.day, 'MM/DD/YYYY'), h.hour, h.temp_cel, h.temp_fah, h.humidity, h.condition
+SELECT l.location_name, TO_CHAR(t.day, 'MM/DD/YYYY'), h.hour, t.min_temp_fah, t.max_temp_fah, h.temp_fah, h.humidity, h.condition
 FROM Locations l
 JOIN Temperature t ON l.location_id = t.location_id
 JOIN (
-    SELECT temperature_id, array_agg(hour) AS hours, array_agg(temp_cel) AS temps_cel,
-            array_agg(temp_fah) AS temps_fah, array_agg(humidity) AS humidities,
-            array_agg(conditions) AS conditions
+    SELECT temperature_id, array_agg(hour) AS hours, array_agg(temp_fah) AS temps_fah,
+    array_agg(humidity) AS humidities, array_agg(conditions) AS conditions
     FROM Hourly
     GROUP BY temperature_id
 ) h_agg ON t.temperature_id = h_agg.temperature_id
-CROSS JOIN UNNEST(h_agg.hours, h_agg.temps_cel, h_agg.temps_fah, h_agg.humidities, h_agg.conditions)
-    AS h(hour, temp_cel, temp_fah, humidity, condition);
+CROSS JOIN UNNEST(h_agg.hours, h_agg.temps_fah, h_agg.humidities, h_agg.conditions)
+    AS h(hour, temp_fah, humidity, condition);
