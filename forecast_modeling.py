@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import NamedTuple
 
+import numpy as np
 import pandas as pd
 import psycopg2
 from sklearn.linear_model import LinearRegression
@@ -21,7 +22,10 @@ class SQLParams(NamedTuple):
 
 
 class SQLFetch(NamedTuple):
-    arg1: str
+    arg1: str=None
+    arg2: str=None
+    arg3: str=None
+    arg4: str=None
 
 
 @dataclass
@@ -62,7 +66,7 @@ class DBConnect:
         try:
             if self.database is not None and hasattr(config, 'database'):
                 return self.database
-            return AttributeError(self.__string())
+            raise AttributeError(self.__string())
         except (RecursionError, NameError) as e:
             return self.__string(e)
     
@@ -73,10 +77,19 @@ class DBConnect:
     def get_columns(sql):
         try:
         #**Fetching columns based on script rather hard coding for practice
-            return filter(lambda i: not i.endswith('id') and 's' not in i, map(lambda i: i.replace('.',''), re.findall(r'\.\w+', sql)))
+            return list(filter(lambda i: not i.endswith('id') and 's' not in i, map(lambda i: i.replace('.',''), re.findall(r'\.\w+', sql))))
         except TypeError:
             return f'Error encountered'
+    
+    @staticmethod
+    def group_where(column):
+        match column:
+            case 'location_id':
+                return 'WHERE l.location_id = '
+            case _:
+                return ''
         
+
     @staticmethod
     def get_sql_script():
         try:
@@ -112,38 +125,73 @@ class DBConnect:
         col_data = Args(arg1=rows, arg2=columns)
         return col_data #**Returns full database including columns
     
-    def group_by_location(self, id_=None): #? Predictive testing for each location
-        '''id_ (int): Location ID on Database Table'''
+    def group_locations(self, column, value):
         try:
             columns = self.get_columns(self.sql_script.arg1)
-            sql_script = f'{self.sql_script.arg1[:-1]}\nWHERE l.location_id = \'{id_}\''
+            sql_script = f'{self.sql_script.arg1[:-1]}\n{DBConnect.group_where(column)}\'{value}\';'
             self.cursor.execute(sql_script)
             rows = self.cursor.fetchall()
             data = Args(arg1=rows, arg2=columns)
             return data
-        except (psycopg2.errors.InvalidTextRepresentation, ValueError, AttributeError):
-            return 'Invalid Location ID'
+        except (psycopg2.errors.InvalidTextRepresentation, ValueError, AttributeError) as e:
+            raise e
+            return 'Invalid Input'
+
 
 
 class GroupByLocation:
-    db = None
-    
+    database = DBConnect()
+
     @classmethod
-    def location_id(cls, id_=None):
-        GroupByLocation.db = DBConnect()
-        return GroupByLocation.db.group_by_location(id_)
-    
+    def location_id(cls, id_=None, db=None, viewtable=False):
+        if db is None:
+            db = cls.database
+            data = cls.database.group_locations('location_id', id_)
+            df = pd.DataFrame(data.arg1, columns=data.arg2)
+            if bool(viewtable)==True:
+                cls.__str__(df)
+            return data
+        else:
+            if isinstance(db, DBConnect):
+                df = pd.DataFrame(db._.arg1, columns=db._.arg2)
+            else:
+                df = pd.DataFrame(db.arg1, columns=db.arg2)
+            if bool(viewtable)==True:
+                cls.__str__(df)
+            return db
+
+    @classmethod
+    def condition_type(cls, type_=None, db=None, viewtable=False):
+        pass
+
     @classmethod
     def reset(cls, _):
-        return GroupByLocation.db
+        return cls.database
+    
+    @classmethod
+    def __str__(cls, df):
+        print(df)
+        return df
+        
 
 
 
 def main():
-    db = DBConnect()
-    loc_group = GroupByLocation.location_id
-    reset = GroupByLocation.reset
-    print(db)
+    db = DBConnect()    #!'db._.arg1'
+    grouper = GroupByLocation
+    loc_group = grouper.location_id
+    con_group = grouper.condition_type
+    reset = grouper.reset
+    d = loc_group(1)
+    b = con_group('Shower Rain', d, viewtable=False)
+    df = pd.DataFrame(d.arg1, columns=d.arg2)
+    print(df.loc[df['condition'] == 'Broken Clouds', d.arg2])
+
+    # first_table = loc_group(2)
+    
+    # second_table = con_group('Scattered Clouds', loc_group(1), viewtable=False)
+    # df = pd.DataFrame(second_table.arg1, columns=second_table.arg2)
+    # print(first_table)
 
 if __name__ == '__main__':
     main()
