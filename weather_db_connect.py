@@ -3,8 +3,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import NamedTuple
 
-import psycopg2
-from psycopg2 import errors
+
+import psycopg
+from psycopg import errors
 
 class SQLParams(NamedTuple):
     host: str
@@ -67,14 +68,14 @@ class ForecastDB:
         config = SQLParams(*config_)
         
         try:
-            self.connection = psycopg2.connect(
+            self.connection = psycopg.connect(
                 host=config.host,
-                database=config.database,
+                dbname=config.database,
                 user=config.username,
-                password=config.password
-            )
+                password=config.password)
             self.cursor = self.connection.cursor()
-        except (psycopg2.Error, FileNotFoundError) as e:
+        except (psycopg.Error, FileNotFoundError) as e:
+            raise e
             print(f"An error occurred during database connection: {e}")
             self.close_db()
             raise SystemExit
@@ -96,7 +97,8 @@ class ForecastDB:
             
             self.insert_tables()
             
-        except psycopg2.errors.DuplicateTable:
+        except (psycopg.errors.DuplicateTable, psycopg.errors.NumericValueOutOfRange) as e:
+            raise e
             print('Table already exists')
     
     def insert_tables(self):
@@ -169,7 +171,7 @@ class ForecastDB:
             try:
                 self.connection.rollback()
                 # print("Transaction rollback completed.")
-            except psycopg2.Error as e:
+            except psycopg.Error as e:
                 print(f"An error occurred during transaction rollback: {e}")
         if self.cursor:
             self.cursor.close()

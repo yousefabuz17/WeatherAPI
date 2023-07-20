@@ -9,10 +9,10 @@ CREATE TABLE IF NOT EXISTS Temperature (
     temperature_id SERIAL PRIMARY KEY,
     location_id INTEGER,
     day DATE,
-    min_temp_cel DECIMAL(4, 2),
-    min_temp_fah DECIMAL(4, 2),
-    max_temp_cel DECIMAL(4, 2),
-    max_temp_fah DECIMAL(4, 2),
+    min_temp_cel DECIMAL(5, 2),
+    min_temp_fah DECIMAL(5, 2),
+    max_temp_cel DECIMAL(5, 2),
+    max_temp_fah DECIMAL(5, 2),
     FOREIGN KEY (location_id) REFERENCES Locations (location_id)
 );
 
@@ -20,8 +20,8 @@ CREATE TABLE IF NOT EXISTS Hourly (
     hourly_id SERIAL PRIMARY KEY,
     temperature_id INTEGER,
     hour TIME,
-    temp_cel DECIMAL(4, 3),
-    temp_fah DECIMAL(4, 3),
+    temp_cel DECIMAL(5, 2),
+    temp_fah DECIMAL(5, 2),
     humidity INTEGER,
     conditions VARCHAR(255),
     FOREIGN KEY (temperature_id) REFERENCES Temperature (temperature_id)
