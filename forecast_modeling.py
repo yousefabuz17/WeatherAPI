@@ -6,10 +6,10 @@ from typing import NamedTuple
 import numpy as np
 import pandas as pd
 import psycopg
-from sklearn.linear_model import LinearRegression
-from sklearn.metrics import mean_squared_error
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder, OneHotEncoder
+# from sklearn.linear_model import LinearRegression
+# from sklearn.metrics import mean_squared_error
+# from sklearn.model_selection import train_test_split
+# from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 
 from weather_data import WeatherForecast
 
@@ -28,43 +28,62 @@ class SQLFetch(NamedTuple):
     arg4: str=None
 
 
-@dataclass
+@dataclass(order=True)
 class Args:
     arg1: str
     arg2: str
     
-    # def __str__(self):
-    #     try:
-    #         df = pd.DataFrame(self.arg1, columns=self.arg2)
-    #         return str(df)
-    #     except (AttributeError, TypeError):
-    #         return
+    #**Prints full database into a DataFrame
+    def __str__(self):
+        try:
+            df = pd.DataFrame(self.arg1, columns=self.arg2)
+            return str(df)
+        except (AttributeError, TypeError):
+            return
+    
+    def __add__(self, other, on_='timestamp', how_='outer'):
+        if not isinstance(other, Args):
+            raise ValueError("Can only add two Args instances.")
+        
+        data = pd.DataFrame(self.arg1, columns=self.arg2)
+        other_data = pd.DataFrame(other.arg1, columns=other.arg2)
+        
+        data['hour'] = data['hour'].astype(str)
+        other_data['hour'] = other_data['hour'].astype(str)
+
+        data['timestamp'] = data['location_name'] + ' ' + data['day'] + ' ' + data['hour']
+        other_data['timestamp'] = other_data['location_name'] + ' ' + other_data['day'] + ' ' + other_data['hour']
+        
+        merged_data = pd.merge(data, other_data, on=on_, how=how_)
+        merged_data.drop(columns=on_, inplace=True)
+        # merged_data = pd.concat([data, other_data], axis=0)
+        # merged_data.drop(columns=on_, inplace=True)
+
+        for col in self.arg2:
+            x_col = f"{col}_x"
+            y_col = f"{col}_y"
+            if x_col in merged_data.columns and y_col in merged_data.columns:
+                merged_data[col] = merged_data.apply(lambda row: row[y_col] if pd.notna(row[y_col]) else row[x_col], axis=1)
+                merged_data.drop(columns=[x_col, y_col], inplace=True)
+        return GroupBy.reset_pd_to_args(merged_data)
+    
+    def __getitem__(self, item):
+        df = pd.DataFrame(self.arg1, columns=self.arg2)
+        return df[item]
 
 
 
 class DBConnect:
     ''''Returns full database in a DataFrame stucture \n
-        'db.arg1' = All rows (Locations) in database server\n
-        'db.arg2' = Columns'''
+        'db._.arg1' = All rows (Locations) in database server\n
+        'db._.arg2' = Columns
+    '''
     def __init__(self):
         self.sql_script = DBConnect.get_sql_script()
         self.connection = None
         self.cursor = None
         self.database = None
         self.validator()
-    
-    # def __str__(self) -> str: #**Prints full database into a DataFrame
-    #     try:
-    #         rows = self.database.arg1
-    #         columns = self.database.arg2
-    #         df = pd.DataFrame(rows, columns=columns)
-    #         pd.set_option('display.max_columns', None)
-    #         return df.__repr__() # For demonstration purposes
-    #     except (AttributeError, FileNotFoundError) as e: 
-    #         return self.__string(e)
-    
-    # def __repr__(self) -> str:
-    #     return self.__str__()
 
     def __del__(self):
         if self.cursor:
@@ -77,6 +96,10 @@ class DBConnect:
             raise AttributeError(self.__string())   #!Remove later
         except (RecursionError, NameError) as e:
             return self.__string(e)
+    
+    def __str__(self):
+        df = pd.DataFrame(self._.arg1, columns=self._.arg2)
+        return df.__repr__()
     
     def __string(self, e=None) -> str:
         return f"Ensure 'config.json' file was entered correctly and database is up and running. {e}"
@@ -91,6 +114,7 @@ class DBConnect:
     
     @staticmethod
     def group_where(column: str) -> str:
+        #! Add more if needed
         match column:
             case 'location_id':
                 return 'WHERE l.location_id = '
@@ -130,7 +154,7 @@ class DBConnect:
         execute_ = self.sql_script.arg1
         self.cursor.execute(execute_)
         rows = self.cursor.fetchall()
-        col_data = Args(arg1=rows, arg2=columns)
+        col_data = Args(*[rows, columns])
         return col_data #**Returns full database including columns
     
     def group_locations(self, column: str, value: str) -> Args:
@@ -139,7 +163,7 @@ class DBConnect:
             sql_script = f'{self.sql_script.arg1[:-1]}\n{DBConnect.group_where(column)}\'{value}\';'
             self.cursor.execute(sql_script)
             rows = self.cursor.fetchall()
-            data = Args(arg1=rows, arg2=columns)
+            data = Args(*[rows, columns])
             return data
         except (psycopg.errors.InvalidTextRepresentation, ValueError, AttributeError) as e:
             raise e
@@ -148,21 +172,17 @@ class DBConnect:
 #TODO: Make class to retrieve all values in specific columns
 
 class GroupBy:
-    database = Args(arg1=DBConnect()._.arg1, arg2=DBConnect()._.arg2)
-
-    @classmethod
-    def __str__(cls,):
-        return ''
+    database = Args(*[DBConnect()._.arg1, DBConnect()._.arg2])
     
-    @classmethod
-    def reset_pd_to_args(cls, pd_):
+    @staticmethod
+    def reset_pd_to_args(pd_):
         rows = pd_.values.tolist()
         columns = pd_.columns.tolist()
-        data_reset = Args(arg1=rows, arg2=columns)
+        data_reset = Args(*[rows, columns])
         return data_reset
     
-    @classmethod
-    def location_id(cls, id_: int|str=None):
+    @staticmethod
+    def location_id(id_: int|str=None):
         try:
             data = DBConnect().group_locations('location_id', id_)
             return data
@@ -182,6 +202,23 @@ class GroupBy:
                 return GroupBy.reset_pd_to_args(filtered_data)
         except (psycopg.errors.InvalidTextRepresentation, psycopg.errors.SyntaxError):
             return 'Invalid input'
+    
+    @classmethod
+    def filter_by_hour(cls, min_hour, max_hour, data=None):
+        try:
+            if data is None:
+                df = pd.DataFrame(cls.database.arg1, columns=cls.database.arg2)
+                df['hour'] = pd.to_datetime(df['hour'])
+                filtered_data = df[(df['min_hour'] >= min_hour) & (df['max_hour'] <= max_hour)]
+                return GroupBy.reset_pd_to_args(filtered_data)
+            else:
+                df = pd.DataFrame(data.arg1, columns=data.arg2)
+                df['hour'] = pd.to_datetime(df['hour'])
+                filtered_data = df[(df['min_hour'] >= min_hour) & (df['max_hour'] <= max_hour)]
+                return GroupBy.reset_pd_to_args(filtered_data)
+        
+        except (psycopg.errors.InvalidTextRepresentation, psycopg.errors.SyntaxError):
+            return 'Invalid input' 
     
     @classmethod
     def filter_by_condition(cls, condition, data=None):
@@ -211,7 +248,7 @@ class GroupBy:
                 return GroupBy.reset_pd_to_args(filtered_data)
         
         except (psycopg.errors.InvalidTextRepresentation, psycopg.errors.SyntaxError):
-            return 'Invalid input' 
+            return 'Invalid input'
     
     @classmethod
     def filter_by_humidity(cls, min_humidity, max_humidity, data=None):
@@ -228,27 +265,17 @@ class GroupBy:
         except (psycopg.errors.InvalidTextRepresentation, psycopg.errors.SyntaxError):
             return 'Invalid input' 
 
-
-    # @classmethod
-    # def __call__(cls, *args, **kwargs):
-    #     return cls.chain_conditions(*args, **kwargs)
-
 def main():
-    database = DBConnect()    # ! 'db._.arg1'
-    db = Args(arg1=database._.arg1, arg2=database._.arg2)
+    database = DBConnect()
+    db = Args(*[database._.arg1, database._.arg2])
     groupby = GroupBy()
     loc = groupby.location_id
     cond = groupby.filter_by_condition
     temper = groupby.filter_by_temperature
     hum = groupby.filter_by_humidity
     day_ = groupby.filter_by_day
-    
-    
-    d = hum(60, 100, data=day_('07/31/2023', data=cond(condition='Shower Rain', data=db)))
-    #d = hum(60, 100) This also works
-    df = pd.DataFrame(d.arg1, columns=d.arg2)
-    print(df)
-
-
+    temp = loc(1)+loc(2)
+    #!Make new file for sklearn
+    # print(temp[temp['hour']>'00:00:00']) #Works
 if __name__ == '__main__':
     main()
