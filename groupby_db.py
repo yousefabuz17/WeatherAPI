@@ -17,18 +17,18 @@ class SQLParams(NamedTuple):
 
 
 class SQLFetch(NamedTuple):
-    arg1: str=None
-    arg2: str=None
-    arg3: str=None
-    arg4: str=None
+    arg1: str = None
+    arg2: str = None
+    arg3: str = None
+    arg4: str = None
 
 
 @dataclass(order=True)
 class Args:
-    arg1: str=None
-    arg2: str=None
+    arg1: str = None
+    arg2: str = None
     
-    #**Prints full database into a DataFrame
+    # **Prints full database into a DataFrame
     def __str__(self):
         try:
             df = pd.DataFrame(self.arg1, columns=self.arg2)
@@ -51,8 +51,6 @@ class Args:
         
         merged_data = pd.merge(data, other_data, on=on_, how=how_)
         merged_data.drop(columns=on_, inplace=True)
-        # merged_data = pd.concat([data, other_data], axis=0)
-        # merged_data.drop(columns=on_, inplace=True)
 
         for col in self.arg2:
             x_col = f"{col}_x"
@@ -67,31 +65,33 @@ class Args:
         return df[item], GroupBy._reset(df)
 
 
-
-
-
 class DBConnect:
-    '''Returns full database and is printed in a pandas DataFrame stucture \n
-        ``'DBConnect()._.arg1'`` = All rows in database server\n
+    '''Returns full database and is printed in a pandas DataFrame structure \n
+        ``'DBConnect(sql_script)'`` = /path/to/sql_script 
+        ``'DBConnect()._.arg1'`` = All rows in the database server\n
         ``'DBConnect()._.arg2'`` = All columns
     '''
-    def __init__(self):
-        self.sql_script = DBConnect.get_sql_script()
+    sql_script = None
+    
+    def __init__(self, sql_script_path: str = None):
+        self.sql_script = self.insert_sql(sql_script_path) or self.get_sql_script()
         self.connection = None
         self.cursor = None
         self.database = None
         self.validator()
 
     def __del__(self):
-        if self.cursor:
-            self.cursor.close()
+        try:
+            if self.cursor:
+                self.cursor.close()
+        except (RecursionError, AttributeError) as e:
+            return self._string(e)
     
     def __getattr__(self, _) -> str:
         try:
             if self.database is not None and hasattr(config, 'database'):
                 return self.database
-            raise AttributeError(self._string())   #!Remove later
-        except (RecursionError, NameError) as e:
+        except (RecursionError, NameError, AttributeError) as e:
             return self._string(e)
     
     def __str__(self):
@@ -99,15 +99,24 @@ class DBConnect:
         return df.__repr__()
     
     def _string(self, e=None) -> str:
-        return f"Ensure 'config.json' file was entered correctly and database is up and running. {e}"
+        return f"Ensure 'config.json' file was entered correctly and the database is up and running. {e}"
     
+    @staticmethod
+    def insert_sql(sql_script_path: str = None) -> str:
+        if sql_script_path:
+            try:
+                sql_script = open(sql_script_path).read().split('\n\n')
+                return sql_script
+            except (FileNotFoundError, AttributeError):
+                return ''
+        return ''
     @staticmethod
     def get_columns(sql: str) -> list:
         try:
-        #**Fetching columns based on script rather hard coding for practice
+            # **Fetching columns based on script rather than hard coding for practice
             return list(filter(lambda i: not i.endswith('id') and 's' not in i, map(lambda i: i.replace('.',''), re.findall(r'\.\w+', sql))))
         except TypeError:
-            return f'Error encountered'
+            return 'Error encountered retrieving columns'
     
     @staticmethod
     def group_where(column: str) -> str:
@@ -117,19 +126,19 @@ class DBConnect:
                 return 'WHERE l.location_id = '
             case _:
                 return ''
-        
 
-    @staticmethod
-    def get_sql_script() -> SQLFetch:
+    def get_sql_script(self) -> SQLFetch:
         try:
             sql_script = SQLFetch(open(Path(__file__).parent.absolute() / 'weather_db.sql').read().split('\n\n')[-1])
             return sql_script
         except FileNotFoundError:
-            return f'Ensure that the SQL script (.sql) is located in the same folder as this program.'
+            return 'Ensure that the SQL script (.sql) is located in the same folder as this program.'
 
     def validator(self):
-        try: self.sql_connect()
-        except AttributeError as e: return f'An error occurred during database connection: {e}'
+        try:
+            self.sql_connect()
+        except AttributeError as e:
+            return f'An error occurred during database connection: {e}'
     
     def sql_connect(self):
         global config
@@ -152,9 +161,17 @@ class DBConnect:
         self.cursor.execute(execute_)
         rows = self.cursor.fetchall()
         col_data = Args(arg1=rows, arg2=columns)
-        return col_data #**Returns full database including columns
+        return col_data #**Returns the full database including columns
     
-    def group_locations(self, column: str, value: str) -> Args:
+    def get_locations(self):
+        try:
+            self.cursor.execute('SELECT location_id, location_name FROM locations')
+            results = self.cursor.fetchall()
+            return results
+        except (psycopg.errors.InvalidTextRepresentation, AttributeError) as e:
+            return self._string(e)
+    
+    def group_location_id(self, column: str, value: str) -> Args:
         try:
             columns = self.get_columns(self.sql_script.arg1)
             sql_script = f'{self.sql_script.arg1[:-1]}\n{DBConnect.group_where(column)}\'{value}\';'
@@ -190,8 +207,10 @@ class GroupBy:
     @staticmethod
     def location_id(id_: int|str=None) -> Args:
         try:
-            data = DBConnect().group_locations('location_id', id_)
-            return data
+            if id_ is not None:
+                data = DBConnect().group_location_id('location_id', id_)
+                return data
+            return DBConnect().get_locations()
         except (psycopg.errors.InvalidTextRepresentation, psycopg.errors.SyntaxError):
             return ValueError("Invalid input")
     
@@ -265,16 +284,20 @@ class GroupBy:
             return 'Invalid input' 
 
 def main():
-    database = DBConnect()
-    db = Args(arg1=database._.arg1, arg2=database._.arg2)
-    groupby = GroupBy()
-    reset = groupby._reset
-    loc = groupby.location_id
-    cond = groupby.filter_by_condition
-    temper = groupby.filter_by_temperature
-    hum = groupby.filter_by_humidity
-    day_ = groupby.filter_by_day
-    hour_ = groupby.filter_by_hour
+    try:
+        sql_script_path = 'path/to/your/sql_script.sql'  # Specify the SQL script path here
+        database = DBConnect(sql_script_path)
+        db = Args(arg1=database._.arg1, arg2=database._.arg2)
+        groupby = GroupBy()
+        reset = groupby._reset
+        loc = groupby.location_id
+        cond = groupby.filter_by_condition
+        temper = groupby.filter_by_temperature
+        hum = groupby.filter_by_humidity
+        day_ = groupby.filter_by_day
+        hour_ = groupby.filter_by_hour
+    except AttributeError:
+        print(f'Ensure config.json file is configured properly and the SQL script (.sql) is located in the same folder as this program.')
     
 if __name__ != '__main__':
     DBConnect
