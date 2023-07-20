@@ -2,7 +2,8 @@ import json
 import os
 import socket
 import sys
-from base64 import b64decode, b64encode
+from base64 import b64encode
+from collections import OrderedDict
 from dataclasses import dataclass
 from pathlib import Path
 from typing import NamedTuple
@@ -10,7 +11,6 @@ from typing import NamedTuple
 import geocoder
 import requests
 from bs4 import BeautifulSoup
-from collections import OrderedDict
 from rapidfuzz import fuzz, process
 
 from emojis import simple_weather_emojis as e
@@ -497,5 +497,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-

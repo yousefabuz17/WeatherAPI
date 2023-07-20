@@ -3,13 +3,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import NamedTuple
 
-import numpy as np
 import pandas as pd
 import psycopg
-# from sklearn.linear_model import LinearRegression
-# from sklearn.metrics import mean_squared_error
-# from sklearn.model_selection import train_test_split
-# from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 
 from weather_data import WeatherForecast
 
@@ -30,8 +25,8 @@ class SQLFetch(NamedTuple):
 
 @dataclass(order=True)
 class Args:
-    arg1: str
-    arg2: str
+    arg1: str=None
+    arg2: str=None
     
     #**Prints full database into a DataFrame
     def __str__(self):
@@ -51,8 +46,8 @@ class Args:
         data['hour'] = data['hour'].astype(str)
         other_data['hour'] = other_data['hour'].astype(str)
 
-        data['timestamp'] = data['location_name'] + ' ' + data['day'] + ' ' + data['hour']
-        other_data['timestamp'] = other_data['location_name'] + ' ' + other_data['day'] + ' ' + other_data['hour']
+        data['timestamp'] = f"{data['location_name']} {data['day']} {data['hour']}"
+        other_data['timestamp'] = f"{other_data['location_name']} other_data['day'] {other_data['hour']}"
         
         merged_data = pd.merge(data, other_data, on=on_, how=how_)
         merged_data.drop(columns=on_, inplace=True)
@@ -65,18 +60,20 @@ class Args:
             if x_col in merged_data.columns and y_col in merged_data.columns:
                 merged_data[col] = merged_data.apply(lambda row: row[y_col] if pd.notna(row[y_col]) else row[x_col], axis=1)
                 merged_data.drop(columns=[x_col, y_col], inplace=True)
-        return GroupBy.reset_pd_to_args(merged_data)
+        return GroupBy._reset(merged_data)
     
     def __getitem__(self, item):
         df = pd.DataFrame(self.arg1, columns=self.arg2)
-        return df[item]
+        return df[item], GroupBy._reset(df)
+
+
 
 
 
 class DBConnect:
-    ''''Returns full database in a DataFrame stucture \n
-        'db._.arg1' = All rows (Locations) in database server\n
-        'db._.arg2' = Columns
+    '''Returns full database and is printed in a pandas DataFrame stucture \n
+        ``'DBConnect()._.arg1'`` = All rows in database server\n
+        ``'DBConnect()._.arg2'`` = All columns
     '''
     def __init__(self):
         self.sql_script = DBConnect.get_sql_script()
@@ -93,15 +90,15 @@ class DBConnect:
         try:
             if self.database is not None and hasattr(config, 'database'):
                 return self.database
-            raise AttributeError(self.__string())   #!Remove later
+            raise AttributeError(self._string())   #!Remove later
         except (RecursionError, NameError) as e:
-            return self.__string(e)
+            return self._string(e)
     
     def __str__(self):
         df = pd.DataFrame(self._.arg1, columns=self._.arg2)
         return df.__repr__()
     
-    def __string(self, e=None) -> str:
+    def _string(self, e=None) -> str:
         return f"Ensure 'config.json' file was entered correctly and database is up and running. {e}"
     
     @staticmethod
@@ -147,14 +144,14 @@ class DBConnect:
             self.cursor = self.connection.cursor()
             self.database = self.query_data()
         except (psycopg.Error, psycopg.OperationalError, FileNotFoundError, AttributeError) as e:
-            self.__string(e)
+            self._string(e)
 
     def query_data(self) -> Args:
         columns = self.get_columns(self.sql_script.arg1)
         execute_ = self.sql_script.arg1
         self.cursor.execute(execute_)
         rows = self.cursor.fetchall()
-        col_data = Args(*[rows, columns])
+        col_data = Args(arg1=rows, arg2=columns)
         return col_data #**Returns full database including columns
     
     def group_locations(self, column: str, value: str) -> Args:
@@ -163,119 +160,124 @@ class DBConnect:
             sql_script = f'{self.sql_script.arg1[:-1]}\n{DBConnect.group_where(column)}\'{value}\';'
             self.cursor.execute(sql_script)
             rows = self.cursor.fetchall()
-            data = Args(*[rows, columns])
+            data = Args(arg1=rows, arg2=columns)
             return data
-        except (psycopg.errors.InvalidTextRepresentation, ValueError, AttributeError) as e:
-            raise e
-            return 'Invalid Input'
+        except (psycopg.errors.InvalidTextRepresentation, AttributeError) as e:
+            return ValueError("Invalid input")
 
-#TODO: Make class to retrieve all values in specific columns
 
 class GroupBy:
-    database = Args(*[DBConnect()._.arg1, DBConnect()._.arg2])
+    database = Args(arg1=DBConnect()._.arg1, arg2=DBConnect()._.arg2)
     
     @staticmethod
-    def reset_pd_to_args(pd_):
-        rows = pd_.values.tolist()
-        columns = pd_.columns.tolist()
-        data_reset = Args(*[rows, columns])
-        return data_reset
+    def _reset(pd_: pd.DataFrame | pd.Series | Args) -> Args | pd.Series:
+        if isinstance(pd_, pd.DataFrame):
+            rows = pd_.values.tolist()
+            columns = pd_.columns.tolist()
+            data_reset = Args(arg1=rows, arg2=columns)
+            return data_reset
+        
+        elif isinstance(pd_, pd.Series):
+            *data_reset, = pd_.tolist()
+            return data_reset
+        
+        elif isinstance(pd_, Args):
+            rows = pd_.arg1
+            columns = pd_.arg2
+            data_reset = Args(arg1=rows, arg2=columns)
+            return data_reset
     
     @staticmethod
-    def location_id(id_: int|str=None):
+    def location_id(id_: int|str=None) -> Args:
         try:
             data = DBConnect().group_locations('location_id', id_)
             return data
         except (psycopg.errors.InvalidTextRepresentation, psycopg.errors.SyntaxError):
-            return 'Invalid input'
+            return ValueError("Invalid input")
     
     @classmethod
-    def filter_by_day(cls, day, data=None):
+    def filter_by_day(cls, day:str, data=None) -> Args:
         try:
             if data is None:
                 data = pd.DataFrame(cls.database.arg1, columns=cls.database.arg2)
-                filtered_data = data[data['day'] == day]
-                return GroupBy.reset_pd_to_args(filtered_data)
             else:
                 data = pd.DataFrame(data.arg1, columns=data.arg2)
-                filtered_data = data[data['day'] == day]
-                return GroupBy.reset_pd_to_args(filtered_data)
-        except (psycopg.errors.InvalidTextRepresentation, psycopg.errors.SyntaxError):
-            return 'Invalid input'
-    
-    @classmethod
-    def filter_by_hour(cls, min_hour, max_hour, data=None):
-        try:
-            if data is None:
-                df = pd.DataFrame(cls.database.arg1, columns=cls.database.arg2)
-                df['hour'] = pd.to_datetime(df['hour'])
-                filtered_data = df[(df['min_hour'] >= min_hour) & (df['max_hour'] <= max_hour)]
-                return GroupBy.reset_pd_to_args(filtered_data)
-            else:
-                df = pd.DataFrame(data.arg1, columns=data.arg2)
-                df['hour'] = pd.to_datetime(df['hour'])
-                filtered_data = df[(df['min_hour'] >= min_hour) & (df['max_hour'] <= max_hour)]
-                return GroupBy.reset_pd_to_args(filtered_data)
+            
+            filtered_data = data[data['day'] == day]
+            return GroupBy._reset(filtered_data)
         
         except (psycopg.errors.InvalidTextRepresentation, psycopg.errors.SyntaxError):
-            return 'Invalid input' 
+            return ValueError("Invalid input")
     
     @classmethod
-    def filter_by_condition(cls, condition, data=None):
+    def filter_by_hour(cls, min_hour:int, max_hour:int, data=None) -> Args:
+        min_hour, max_hour = map(lambda i: f'{str(i).zfill(2)}:00:00', [min_hour, max_hour])
         try:
             if data is None:
                 df = pd.DataFrame(cls.database.arg1, columns=cls.database.arg2)
-                filtered_data = df[df['condition'] == condition]
-                return GroupBy.reset_pd_to_args(filtered_data)
             else:
                 df = pd.DataFrame(data.arg1, columns=data.arg2)
-                filtered_data = df[df['condition'] == condition]
-                return GroupBy.reset_pd_to_args(filtered_data)
+            df['hour'] = df['hour'].astype(str)
+            filtered_data = df[(df['hour'] >= min_hour) & (df['hour'] <= max_hour)]
+            return GroupBy._reset(filtered_data)
+            
         
         except (psycopg.errors.InvalidTextRepresentation, psycopg.errors.SyntaxError):
-            return 'Invalid input' 
+            return ValueError("Invalid input")
     
     @classmethod
-    def filter_by_temperature(cls, min_temp, max_temp, data=None):
+    def filter_by_condition(cls, condition, data=None) -> Args:
         try:
             if data is None:
                 df = pd.DataFrame(cls.database.arg1, columns=cls.database.arg2)
-                filtered_data = df[(df['temp_fah'] >= min_temp) & (df['temp_fah'] <= max_temp)]
-                return GroupBy.reset_pd_to_args(filtered_data)
             else:
                 df = pd.DataFrame(data.arg1, columns=data.arg2)
-                filtered_data = df[(df['temp_fah'] >= min_temp) & (df['temp_fah'] <= max_temp)]
-                return GroupBy.reset_pd_to_args(filtered_data)
+            filtered_data = df[df['condition'] == condition]
+            return GroupBy._reset(filtered_data)
         
         except (psycopg.errors.InvalidTextRepresentation, psycopg.errors.SyntaxError):
-            return 'Invalid input'
+            return ValueError("Invalid input")
     
     @classmethod
-    def filter_by_humidity(cls, min_humidity, max_humidity, data=None):
+    def filter_by_temperature(cls, min_temp, max_temp, data=None) -> Args:
         try:
             if data is None:
                 df = pd.DataFrame(cls.database.arg1, columns=cls.database.arg2)
-                filtered_data = df[(df['humidity'] >= min_humidity) & (df['humidity'] <= max_humidity)]
-                return GroupBy.reset_pd_to_args(filtered_data)
             else:
                 df = pd.DataFrame(data.arg1, columns=data.arg2)
-                filtered_data = df[(df['humidity'] >= min_humidity) & (df['humidity'] <= max_humidity)]
-                return GroupBy.reset_pd_to_args(filtered_data)
+            filtered_data = df[(df['temp_fah'] >= min_temp) & (df['temp_fah'] <= max_temp)]
+            return GroupBy._reset(filtered_data)
+        
+        except (psycopg.errors.InvalidTextRepresentation, psycopg.errors.SyntaxError):
+            return ValueError("Invalid input")
+    
+    @classmethod
+    def filter_by_humidity(cls, min_humidity, max_humidity, data=None) -> Args:
+        try:
+            if data is None:
+                df = pd.DataFrame(cls.database.arg1, columns=cls.database.arg2)
+            else:
+                df = pd.DataFrame(data.arg1, columns=data.arg2)
+            filtered_data = df[(df['humidity'] >= min_humidity) & (df['humidity'] <= max_humidity)]
+            return GroupBy._reset(filtered_data)
         
         except (psycopg.errors.InvalidTextRepresentation, psycopg.errors.SyntaxError):
             return 'Invalid input' 
 
 def main():
     database = DBConnect()
-    db = Args(*[database._.arg1, database._.arg2])
+    db = Args(arg1=database._.arg1, arg2=database._.arg2)
     groupby = GroupBy()
+    reset = groupby._reset
     loc = groupby.location_id
     cond = groupby.filter_by_condition
     temper = groupby.filter_by_temperature
     hum = groupby.filter_by_humidity
     day_ = groupby.filter_by_day
-    temp = loc(1)+loc(2)
-    #!Make new file for sklearn
-    # print(temp[temp['hour']>'00:00:00']) #Works
-if __name__ == '__main__':
-    main()
+    hour_ = groupby.filter_by_hour
+    
+if __name__ != '__main__':
+    DBConnect
+    GroupBy
+
+main()
