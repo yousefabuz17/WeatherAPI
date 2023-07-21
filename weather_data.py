@@ -60,6 +60,12 @@ class ParsedDate:
     day: str
 
 
+@dataclass
+class Args:
+    arg1: str=None
+    arg2: str=None
+    arg3: str=None
+
 class SimpleWeather: #! Turn into a simple GUI
     def __init__(self, place=None):
         """
@@ -385,7 +391,7 @@ class WeatherConditons:
             - `data` (list): The weather data to be modified.
             - `condition` (str, optional): The specific condition to modify. Defaults to None.
         """
-        global emoji_con
+        global emoji_con, missing_codes
         
         weather_conditions = WeatherConditons().scrape_data()
         unpacked = list(map(lambda i: [i.icon_code, i.description], weather_conditions))
@@ -399,6 +405,7 @@ class WeatherConditons:
                 conditions['conditions'] = best_match
                 conditions['emoji'] = list(filter(lambda i: i[0] if i[1]==best_match else '', unpacked))[0][0] # [['03d', 'Scattered Clouds']] --> '03d' --> b'PNG' (after using modify_emoji)
                 emoji_con[conditions['conditions']] = conditions['emoji']
+        missing_codes = {icon: desc for icon,desc in unpacked if icon not in emoji_con.values()}
         try:
             SimpleWeather.dump_json(data)
         except OSError as e:
@@ -441,22 +448,33 @@ class WeatherIcons:
         """
         data = json.loads((Path(__file__).parent.absolute() / 'Forecast_data.json').read_text())
         weather_icons = WeatherIcons()
+        full_modifications = []
         for _, icon_code in emoji_con.items():
-            with open(Path(__file__).parent.absolute() / 'icons' / f'{icon_code}.png', 'wb') as file: #! To view png
-                    try:
-                        png_bytes = weather_icons.parse_icon_url(icon_code)
-                        file.write(png_bytes)
-                        for item in data:
-                            hourly_data = item['day']['hourly_data']
-                            for conditions in hourly_data:
-                                if emoji_con.get(conditions['conditions']) == icon_code:
-                                    conditions['emoji'] = {'Description': conditions['conditions'],
-                                                            'Icon Code':icon_code,
-                                                            'Decoded Bytes':b64encode(png_bytes).decode('utf-8')}
-                                                            # encode back for bytes
-                    except OSError as e:
-                        print("Error: Failed to write icon data.", e)
-                        raise SystemExit
+            with open(Path(__file__).parent.absolute() / 'icons' / f'{icon_code}_day.png', 'wb') as day_file:
+                with open(Path(__file__).parent.absolute() / 'icons' / f'{icon_code}_night.png', 'wb') as night_file:
+                    day_png_bytes = weather_icons.parse_icon_url(icon_code)
+                    night_png_bytes = weather_icons.parse_icon_url(icon_code.replace('d', 'n'))
+                    day_file.write(day_png_bytes)
+                    night_file.write(night_png_bytes)
+                    for item in data:
+                        hourly_data = item['day']['hourly_data']
+                        for conditions in hourly_data:
+                            if emoji_con.get(conditions['conditions']) == icon_code:
+                                conditions['emoji'] = {'Description': conditions['conditions'],
+                                                        'Icon Code':icon_code,
+                                                        'Decoded Bytes':b64encode(day_png_bytes).decode('utf-8')}
+                                                        # encode back for bytes
+                            else:
+                                pass
+
+        for code, descr in missing_codes.items():
+            with open(Path(__file__).parent.absolute() / 'icons' / f'{code}_day.png', 'wb') as day_file_:
+                with open(Path(__file__).parent.absolute() / 'icons' / f'{code}_night.png', 'wb') as night_file_:
+                    if code not in emoji_con.values():
+                        png_bytes_ = weather_icons.parse_icon_url(code)
+                        night_code_ = weather_icons.parse_icon_url(code.replace('d', 'n'))
+                        day_file_.write(png_bytes_)
+                        night_file_.write(night_code_)
         try:
             SimpleWeather.dump_json(data)
         except OSError as e:
