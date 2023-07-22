@@ -44,6 +44,7 @@ class ForecastDB:
             - `user` (str): The username to authenticate with.
             - `password` (str): The password for the specified user.
         """
+        self.conditions = ForecastDB.load_json('weather_conditions.json')
         self.data = ForecastDB.load_json('Forecast_data.json')
         self.days = 15
         self.config = config
@@ -103,6 +104,7 @@ class ForecastDB:
     
     def insert_tables(self):
         data = self.data
+        conditions = self.conditions
 
         def dataclass_mapper(attr, endpoint):
             return (*map(lambda i: getattr(attr, f'arg{i}'), range(1, endpoint + 1)),)
@@ -132,13 +134,6 @@ class ForecastDB:
             self.connection.commit()
             # **Temperature Table Executed**
 
-            # **Executing WeatherEmoji Table**
-            emoji_d = data[i]['day']['hourly_data']
-            emoji = SQLData(arg1=emoji_d[i]['emoji']['Description'],
-                            arg2=emoji_d[i]['emoji']['Icon Code'],
-                            arg3=emoji_d[i]['emoji']['Decoded Bytes'])
-            emoji_data = dataclass_mapper(emoji, 3)
-
             try:
                 # **Executing Hourly Table**
                 hour_data = data[i]['day']['hourly_data']
@@ -159,9 +154,16 @@ class ForecastDB:
                 self.connection.commit()
                 # ** Hourly Table Executed **
                 
-                self.cursor.execute(weather_db.iweatheremoji, (*emoji_data,))
-                emoji_id = self.cursor.fetchone()[0]
-                self.connection.commit()
+                # **Executing WeatherEmoji Table**
+                for i in self.conditions:
+                    info = SQLData(arg1=conditions[i]['Description'],
+                                    arg2=conditions[i]['Icon Code'],
+                                    arg3=conditions[i]['Day Decoded Bytes'],
+                                    arg4=conditions[i]['Night Decoded Bytes'])
+                    info_data = dataclass_mapper(info, 4)
+                    self.cursor.execute(weather_db.iweatheremoji, (*info_data,))
+                    emoji_id = self.cursor.fetchone()[0]
+                    self.connection.commit()
 
             except errors.UniqueViolation:
                 self.connection.commit()
