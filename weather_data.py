@@ -230,7 +230,6 @@ class SimpleWeather: #! Turn into a simple GUI
                 print("Error: Failed to write JSON data.", e)
                 raise SystemExit
 
-
 class WeatherForecast(SimpleWeather):
     def __init__(self, place=None):
         """
@@ -247,7 +246,12 @@ class WeatherForecast(SimpleWeather):
             'unitGroup': 'metric',
             'location': self.place or self.get_location(),
         }
+        self._coordinates = None
 
+    @property
+    def get_coordinates(self):
+        return self._coordinates
+    
     @staticmethod
     def get_config():
         return json.load(open(Path(__file__).parent.absolute() / 'config.json', encoding='utf-8'))
@@ -283,6 +287,7 @@ class WeatherForecast(SimpleWeather):
         full_data = []
         
         coordinates = LocationInfo(arg1=data['longitude'], arg2=data['latitude'])
+        self._coordinates = coordinates
         location_name = data['resolvedAddress']
         both_degrees = lambda c_temp: (c_temp, round((c_temp * 9 / 5) + 32, 2))  # (Celsius, Fahrenheit)
         
@@ -350,6 +355,12 @@ class WeatherForecast(SimpleWeather):
             raise SystemExit
         clean_data = WeatherConditons.modify_condition(clean_data)
         return clean_data
+
+class HistoricalData(WeatherForecast):
+    def __init__(self, place=None):
+        super().__init__(place)
+        self.coordinates = self.get_coordinates
+        self.base_url = f'https://archive-api.open-meteo.com/v1/archive?latitude={self.coordinates.arg2}&longitude={self.coordinates.arg1}&start_date=2020-12-31&end_date=2023-07-01hourly=temperature_2m&temperature_unit=fahrenheit&windspeed_unit=mph'
 
 
 class WeatherConditons:
@@ -488,30 +499,39 @@ class WeatherIcons:
             print("Error: Failed to write JSON data.", e)
             raise SystemExit
         return full_modifications
-    
+
+
 def main():
     global config
     
     config = ConfigInfo(*WeatherForecast.get_config().values())
     
-    def start_forecast(place):
+    def get_forecast(place):
         forecast = WeatherForecast(place)
         forecast.full_weather_data()
         forecast.data_to_json() # Full JSON forecast data
         sql_params = map(lambda i: getattr(config, i), ['host', 'database', 'username', 'password'])
         ForecastDB(sql_params)
     
+    def get_history():
+        history = HistoricalData()
+        
+        
+        
+    
+    
     try:
         simple_weather = input("\nWould you like a simple weather report? (y/n): ").lower()
         place = input("Enter a location (leave empty for current location): ")
         if simple_weather in ['no', 'n']:
-            start_forecast(place)
+            get_forecast(place)
+            
         else:
             SimpleWeather(place).display_weather_report()
     except KeyboardInterrupt:
         try:
             again = input("\nWould you like to try again?\nEnter a location (leave empty for current location):")
-            start_forecast(again)
+            get_forecast(again)
         except:
             print('\nProgram Terminated')
             sys.exit(0)
