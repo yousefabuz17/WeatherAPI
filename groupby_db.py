@@ -1,7 +1,7 @@
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import NamedTuple
+from typing import NamedTuple, Union
 
 import pandas as pd
 import psycopg
@@ -47,7 +47,7 @@ class Args:
         other_data['hour'] = other_data['hour'].astype(str)
 
         data['timestamp'] = f"{data['location_name']} {data['day']} {data['hour']}"
-        other_data['timestamp'] = f"{other_data['location_name']} other_data['day'] {other_data['hour']}"
+        other_data['timestamp'] = f"{other_data['location_name']} {other_data['day']} {other_data['hour']}"
         
         merged_data = pd.merge(data, other_data, on=on_, how=how_)
         merged_data.drop(columns=on_, inplace=True)
@@ -61,17 +61,19 @@ class Args:
         return GroupBy._reset(merged_data)
     
     def __getitem__(self, item):
-        df = pd.DataFrame(self.arg1, columns=self.arg2)
+        if isinstance(self, DBConnect):
+            df = pd.DataFrame(self._.arg1, columns=self._.arg2)
+        elif isinstance(self, Args):
+            df = pd.DataFrame(self.arg1, columns=self.arg2)
         return df[item], GroupBy._reset(df)
 
 
 class DBConnect:
     '''Returns full database and is printed in a pandas DataFrame structure \n
-        ``'DBConnect(sql_script)'`` = /path/to/sql_script 
+        ``'DBConnect(sql_script)'`` = /path/to/sql_script\n
         ``'DBConnect()._.arg1'`` = All rows in the database server\n
         ``'DBConnect()._.arg2'`` = All columns
     '''
-    sql_script = None
     
     def __init__(self, sql_script_path: str = None):
         self.sql_script = self.insert_sql(sql_script_path) or self.get_sql_script()
@@ -98,18 +100,26 @@ class DBConnect:
         df = pd.DataFrame(self._.arg1, columns=self._.arg2)
         return df.__repr__()
     
+    def __getitem__(self, item):
+        df = pd.DataFrame(self._.arg1, columns=self._.arg2)
+        return df[item], GroupBy._reset(df)
+    
+    
     def _string(self, e=None) -> str:
         return f"Ensure 'config.json' file was entered correctly and the database is up and running. {e}"
-    
-    @staticmethod
-    def insert_sql(sql_script_path: str = None) -> str:
+
+    def insert_sql(self, sql_script_path: str = None) -> str:
+        if sql_script_path is None:
+            return self.get_sql_script()
         if sql_script_path:
             try:
                 sql_script = open(sql_script_path).read().split('\n\n')
                 return sql_script
             except (FileNotFoundError, AttributeError):
+                return self.get_sql_script()
                 return ''
         return ''
+    
     @staticmethod
     def get_columns(sql: str) -> list:
         try:
@@ -127,7 +137,8 @@ class DBConnect:
             case _:
                 return ''
 
-    def get_sql_script(self) -> SQLFetch:
+    @staticmethod
+    def get_sql_script() -> SQLFetch:
         try:
             sql_script = SQLFetch(open(Path(__file__).parent.absolute() / 'weather_db.sql').read().split('\n\n')[-1])
             return sql_script
@@ -163,11 +174,13 @@ class DBConnect:
         col_data = Args(arg1=rows, arg2=columns)
         return col_data #**Returns the full database including columns
     
+    @property
     def get_locations(self):
         try:
             self.cursor.execute('SELECT location_id, location_name FROM locations')
-            results = self.cursor.fetchall()
-            return results
+            locations = self.cursor.fetchall()
+            location_chart = pd.Series(data=[i[1] for i in locations],index=[i[0] for i in locations])
+            return location_chart
         except (psycopg.errors.InvalidTextRepresentation, AttributeError) as e:
             return self._string(e)
     
@@ -184,10 +197,11 @@ class DBConnect:
 
 
 class GroupBy:
-    database = Args(arg1=DBConnect()._.arg1, arg2=DBConnect()._.arg2)
+    def __init__(cls):
+        cls.database = DBConnect().query_data()
     
     @staticmethod
-    def _reset(pd_: pd.DataFrame | pd.Series | Args) -> Args | pd.Series:
+    def _reset(pd_: Union[pd.DataFrame, pd.Series, 'DBConnect', 'Args']) -> Union['Args', list, pd.DataFrame]:
         if isinstance(pd_, pd.DataFrame):
             rows = pd_.values.tolist()
             columns = pd_.columns.tolist()
@@ -198,10 +212,16 @@ class GroupBy:
             *data_reset, = pd_.tolist()
             return data_reset
         
+        elif isinstance(pd_, DBConnect):
+            rows = pd_._.arg1
+            columns = pd_._.arg2
+            data_reset = pd.DataFrame(rows, columns=columns)
+            return data_reset
+        
         elif isinstance(pd_, Args):
             rows = pd_.arg1
             columns = pd_.arg2
-            data_reset = Args(arg1=rows, arg2=columns)
+            data_reset = pd.DataFrame(rows, columns=columns)
             return data_reset
     
     @staticmethod
@@ -210,7 +230,7 @@ class GroupBy:
             if id_ is not None:
                 data = DBConnect().group_location_id('location_id', id_)
                 return data
-            return DBConnect().get_locations()
+            return DBConnect().get_locations
         except (psycopg.errors.InvalidTextRepresentation, psycopg.errors.SyntaxError):
             return ValueError("Invalid input")
     
@@ -223,7 +243,7 @@ class GroupBy:
                 data = pd.DataFrame(data.arg1, columns=data.arg2)
             
             filtered_data = data[data['day'] == day]
-            return GroupBy._reset(filtered_data)
+            return filtered_data
         
         except (psycopg.errors.InvalidTextRepresentation, psycopg.errors.SyntaxError):
             return ValueError("Invalid input")
@@ -238,7 +258,7 @@ class GroupBy:
                 df = pd.DataFrame(data.arg1, columns=data.arg2)
             df['hour'] = df['hour'].astype(str)
             filtered_data = df[(df['hour'] >= min_hour) & (df['hour'] <= max_hour)]
-            return GroupBy._reset(filtered_data)
+            return filtered_data
             
         
         except (psycopg.errors.InvalidTextRepresentation, psycopg.errors.SyntaxError):
@@ -252,7 +272,7 @@ class GroupBy:
             else:
                 df = pd.DataFrame(data.arg1, columns=data.arg2)
             filtered_data = df[df['condition'] == condition]
-            return GroupBy._reset(filtered_data)
+            return filtered_data
         
         except (psycopg.errors.InvalidTextRepresentation, psycopg.errors.SyntaxError):
             return ValueError("Invalid input")
@@ -265,7 +285,7 @@ class GroupBy:
             else:
                 df = pd.DataFrame(data.arg1, columns=data.arg2)
             filtered_data = df[(df['temp_fah'] >= min_temp) & (df['temp_fah'] <= max_temp)]
-            return GroupBy._reset(filtered_data)
+            return filtered_data
         
         except (psycopg.errors.InvalidTextRepresentation, psycopg.errors.SyntaxError):
             return ValueError("Invalid input")
@@ -278,29 +298,29 @@ class GroupBy:
             else:
                 df = pd.DataFrame(data.arg1, columns=data.arg2)
             filtered_data = df[(df['humidity'] >= min_humidity) & (df['humidity'] <= max_humidity)]
-            return GroupBy._reset(filtered_data)
+            return filtered_data
         
         except (psycopg.errors.InvalidTextRepresentation, psycopg.errors.SyntaxError):
             return 'Invalid input' 
 
-def main():
-    try:
-        sql_script_path = 'path/to/your/sql_script.sql'  # Specify the SQL script path here
-        database = DBConnect(sql_script_path)
-        db = Args(arg1=database._.arg1, arg2=database._.arg2)
-        groupby = GroupBy()
-        reset = groupby._reset
-        loc = groupby.location_id
-        cond = groupby.filter_by_condition
-        temper = groupby.filter_by_temperature
-        hum = groupby.filter_by_humidity
-        day_ = groupby.filter_by_day
-        hour_ = groupby.filter_by_hour
-    except AttributeError:
-        print(f'Ensure config.json file is configured properly and the SQL script (.sql) is located in the same folder as this program.')
+# def main():
+#     try:
+#         sql_script_path = 'path/to/your/sql_script.sql'  # Specify the SQL script path here
+#         database = DBConnect(sql_script_path)
+#         db = Args(arg1=database._.arg1, arg2=database._.arg2)
+#         groupby = GroupBy()
+#         reset = groupby._reset
+#         loc = groupby.location_id
+#         cond = groupby.filter_by_condition
+#         temper = groupby.filter_by_temperature
+#         hum = groupby.filter_by_humidity
+#         day_ = groupby.filter_by_day
+#         hour_ = groupby.filter_by_hour
+#     except AttributeError:
+#         print(f'Ensure config.json file is configured properly and the SQL script (.sql) is located in the same folder as this program.')
     
-if __name__ != '__main__':
-    DBConnect
-    GroupBy
+# if __name__ != '__main__':
+#     DBConnect
+#     GroupBy
 
-main()
+# main()
