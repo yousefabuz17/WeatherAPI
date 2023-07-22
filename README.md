@@ -8,7 +8,12 @@ This is a Python application that fetches and displays weather information using
 - [Examples](#examples)
     - [Simple Weather](#simple-weather)
     - [Weather Forecast](#weather-forecast)
+- [Time Complexity Analysis](#time-complexity-analysis)
+    - [Fetching Current Weather Data (Simple Weather)](#fetching-current-weather-data-simple-weather)
+    - [Fetching Weather Forecast Data (Weather Forecast)](#fetching-weather-forecast-data-weather-forecast)
+    - [Database Operations](#database-operations)
 - [Progress](#progress)
+- [Regression Modeling](#regression-modeling)
 - [Future Enhancements](#future-enhancements)
 
 
@@ -39,6 +44,7 @@ The Weather Forecast Application is a Python application that fetches weather da
 - API data cleaned and formatted for better visualization
 - GUI for better visiuallization and user experience
 - Demo of the GUI coming soon
+- [Regression Modeling](#regression-modeling)
 - **Dashboard still in-development**
 ---
 ## Time Complexity Analysis
@@ -92,10 +98,89 @@ The tables are related using foreign key constraints. The `temperature_id` colum
 - [x] Automatic Location Detection
 - [x] Real-Time Forecasts
 - [ ] Predictive Model
-- [x] SQL DB integration
+    - [x] Regression
+    - [ ] Historical Data for Predictive Modeling
+- [x] SQL DB Integration
     - [x] Postgresql
     - [x] Updates DB each run with new data while storing old data for predicitve modeling
 - [x] Exception Handling
+
+## Regression Modeling
+```
+Results for New York, NY, United States:
+        Temperature Regression Mean Squared Error: 1.686
+        Temperature Regression R-squared: 0.938
+        Weather Condition Classification Accuracy: 80.56%
+
+
+
+Results for Fort Lauderdale, FL, United States:
+        Temperature Regression Mean Squared Error: 0.497
+        Temperature Regression R-squared: 0.966
+        Weather Condition Classification Accuracy: 81.94%
+
+
+
+Results for Beit Hanina Balad, HaGada HaMa'aravit:
+        Temperature Regression Mean Squared Error: 1.898
+        Temperature Regression R-squared: 0.966
+        Weather Condition Classification Accuracy: 97.22%
+
+
+
+Results for Barrio Patagonia, Bahía Blanca, Buenos Aires, Argentina:
+        Temperature Regression Mean Squared Error: 1.223
+        Temperature Regression R-squared: 0.957
+        Weather Condition Classification Accuracy: 80.56%
+
+
+
+Results for Desert, Green River, UT, United States:
+        Temperature Regression Mean Squared Error: 1.625
+        Temperature Regression R-squared: 0.979
+        Weather Condition Classification Accuracy: 84.72%
+
+
+
+Results for Antarctica:
+        Temperature Regression Mean Squared Error: 4.522
+        Temperature Regression R-squared: 0.933
+        Weather Condition Classification Accuracy: 95.83%
+
+
+
+Results for Tornado, WV, United States:
+        Temperature Regression Mean Squared Error: 3.220
+        Temperature Regression R-squared: 0.956
+        Weather Condition Classification Accuracy: 79.17%
+
+
+
+Results for Siberia, Matatiele, Eastern Cape, South Africa:
+        Temperature Regression Mean Squared Error: 6.454
+        Temperature Regression R-squared: 0.927
+        Weather Condition Classification Accuracy: 86.11%
+
+
+
+Results for Hayling Island, England, United Kingdom:
+        Temperature Regression Mean Squared Error: 2.214
+        Temperature Regression R-squared: 0.706
+        Weather Condition Classification Accuracy: 80.56%
+
+
+
+Results for Antarctica:
+        Temperature Regression Mean Squared Error: 0.422
+        Temperature Regression R-squared: 0.987
+        Weather Condition Classification Accuracy: 95.83%
+```
+
+#### The weather forecast project yielded promising results, demonstrating the effectiveness of the predictive models in providing accurate temperature predictions and weather condition classifications for various locations.
+    - The mean squared error (MSE) values were reasonably low, indicating minimal prediction errors in temperature forecasts.
+    - The high R-squared (R2) values close to 1 suggested that the models effectively explained a significant portion of the temperature variability.
+    - The weather condition classification accuracy also performed well, achieving approximately 80% or higher accuracy in most cases. These results affirm the reliability of the models in delivering reliable weather forecasts.
+
 
 
 
