@@ -31,7 +31,8 @@ CREATE TABLE IF NOT EXISTS WeatherEmoji (
     emoji_id SERIAL PRIMARY KEY,
     description VARCHAR(255),
     icon_code VARCHAR(255) UNIQUE,
-    bytes BYTEA
+    day_bytes BYTEA,
+    night_bytes BYTEA
 );
 
 INSERT INTO Locations (location_name, longitude, latitude)
@@ -46,8 +47,8 @@ INSERT INTO Hourly (temperature_id, hour, temp_cel, temp_fah, humidity, conditio
 VALUES (%s, %s, %s, %s, %s, %s)
 RETURNING hourly_id;
 
-INSERT INTO WeatherEmoji (description, icon_code, bytes)
-VALUES (%s, %s, %s)
+INSERT INTO WeatherEmoji (description, icon_code, day_bytes, night_bytes)
+VALUES (%s, %s, %s, %s)
 RETURNING emoji_id;
 
 SELECT l.location_name, TO_CHAR(t.day, 'MM/DD/YYYY'), h.hour, t.min_temp_fah, t.max_temp_fah, h.temp_fah, h.humidity, h.condition

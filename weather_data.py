@@ -209,18 +209,23 @@ class SimpleWeather: #! Turn into a simple GUI
             ''')
     
     @staticmethod
-    def dump_json(data):
+    def dump_json(data, file_name=None):
         """
         Dump the data into a JSON file.
 
         Parameters:
             - `data` (list): The data to be dumped into the JSON file.
         """
-        forecast_json = Path(__file__).parent.absolute() / 'Forecast_data.json'
+        forecast_json = Path(__file__).parent.absolute() / file_name
         if os.path.isfile(forecast_json) or not os.path.isfile(forecast_json):
             try:
-                with open(forecast_json, 'w') as f:
-                    json.dump(data, f, indent=2)
+                if file_name:
+                    if not file_name.endswith('.json'):
+                        with open(f'{file_name}.json', 'w') as f:
+                            json.dump(data, f, indent=2)
+                    else:
+                        with open(forecast_json, 'w') as f:
+                            json.dump(data, f, indent=2)
             except OSError as e:
                 print("Error: Failed to write JSON data.", e)
                 raise SystemExit
@@ -339,7 +344,7 @@ class WeatherForecast(SimpleWeather):
             item['day']['hourly_data'] = hourly_data
             clean_data.append(item)
         try:
-            SimpleWeather.dump_json(clean_data)
+            SimpleWeather.dump_json(clean_data, file_name='Forecast_data.json')
         except OSError as e:
             print("Error: Failed to write JSON data.", e)
             raise SystemExit
@@ -405,9 +410,9 @@ class WeatherConditons:
                 conditions['conditions'] = best_match
                 conditions['emoji'] = list(filter(lambda i: i[0] if i[1]==best_match else '', unpacked))[0][0] # [['03d', 'Scattered Clouds']] --> '03d' --> b'PNG' (after using modify_emoji)
                 emoji_con[conditions['conditions']] = conditions['emoji']
-        missing_codes = {icon: desc for icon,desc in unpacked if icon not in emoji_con.values()}
+        missing_codes = {desc: icon for icon,desc in unpacked if icon not in emoji_con.values()}
         try:
-            SimpleWeather.dump_json(data)
+            SimpleWeather.dump_json(data, file_name='Forecast_data.json')
         except OSError as e:
             print("Error: Failed to write JSON data.", e)
             raise SystemExit
@@ -447,41 +452,43 @@ class WeatherIcons:
             - `bytes`: The decoded bytes of the icon image.
         """
         data = json.loads((Path(__file__).parent.absolute() / 'Forecast_data.json').read_text())
+        path = Path(__file__).parent.absolute()
         weather_icons = WeatherIcons()
-        full_modifications = []
-        for _, icon_code in emoji_con.items():
-            with open(Path(__file__).parent.absolute() / 'icons' / f'{icon_code}_day.png', 'wb') as day_file:
-                with open(Path(__file__).parent.absolute() / 'icons' / f'{icon_code}_night.png', 'wb') as night_file:
-                    day_png_bytes = weather_icons.parse_icon_url(icon_code)
-                    night_png_bytes = weather_icons.parse_icon_url(icon_code.replace('d', 'n'))
-                    day_file.write(day_png_bytes)
-                    night_file.write(night_png_bytes)
-                    for item in data:
-                        hourly_data = item['day']['hourly_data']
-                        for conditions in hourly_data:
-                            if emoji_con.get(conditions['conditions']) == icon_code:
-                                conditions['emoji'] = {'Description': conditions['conditions'],
-                                                        'Icon Code':icon_code,
-                                                        'Decoded Bytes':b64encode(day_png_bytes).decode('utf-8')}
-                                                        # encode back for bytes
-                            else:
-                                pass
+        all_codes = OrderedDict(sorted(emoji_con.items() | missing_codes.items(), key=lambda i: i[1]))
 
-        for code, descr in missing_codes.items():
-            with open(Path(__file__).parent.absolute() / 'icons' / f'{code}_day.png', 'wb') as day_file_:
-                with open(Path(__file__).parent.absolute() / 'icons' / f'{code}_night.png', 'wb') as night_file_:
-                    if code not in emoji_con.values():
-                        png_bytes_ = weather_icons.parse_icon_url(code)
-                        night_code_ = weather_icons.parse_icon_url(code.replace('d', 'n'))
-                        day_file_.write(png_bytes_)
-                        night_file_.write(night_code_)
+        for _, icon_code in emoji_con.items():
+            png_bytes = weather_icons.parse_icon_url(icon_code)
+            for item in data:
+                hourly_data = item['day']['hourly_data']
+                for conditions in hourly_data:
+                    if emoji_con.get(conditions['conditions']) == icon_code:
+                        conditions['emoji'] = {'Description': conditions['conditions'],
+                                                'Icon Code':icon_code,
+                                                'Decoded Bytes':b64encode(png_bytes).decode('utf-8')}
+                                                # encode back for bytes
+                    else:
+                        pass
+        
+        full_modifications = {}
+        for condition, code in all_codes.items():
+            with open(path / 'icons' / f'{code}_day.png', 'wb') as day_file_:
+                with open(path / 'icons' / f'{code}_night.png', 'wb') as night_file_:
+                    day_bytes = weather_icons.parse_icon_url(code)
+                    night_bytes = weather_icons.parse_icon_url(code.replace('d', 'n'))
+                    day_file_.write(day_bytes)
+                    night_file_.write(night_bytes)
+                    full_modifications[condition] = {'Description': condition,
+                                                'Icon Code':code,
+                                                'Day Decoded Bytes':b64encode(day_bytes).decode('utf-8'),
+                                                'Night Decoded Bytes':b64encode(night_bytes).decode('utf-8')}
         try:
-            SimpleWeather.dump_json(data)
+            SimpleWeather.dump_json(data, file_name='Forecast_data.json')
+            SimpleWeather.dump_json(full_modifications, file_name='weather_conditions')
         except OSError as e:
             print("Error: Failed to write JSON data.", e)
             raise SystemExit
-        return
-
+        return full_modifications
+    
 def main():
     global config
     
