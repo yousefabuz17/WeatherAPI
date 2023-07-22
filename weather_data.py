@@ -8,9 +8,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import NamedTuple
 
-import geocoder
 import requests
 from bs4 import BeautifulSoup
+from geocoder import ip
 from rapidfuzz import fuzz, process
 
 from emojis import simple_weather_emojis as e
@@ -48,6 +48,11 @@ class LocationInfo(NamedTuple):
     arg1: float=None
     arg2: float=None
 
+class HourlyData(NamedTuple):
+    date: str
+    time: str
+    temp: str
+
 @dataclass
 class ConditionInfo:
     icon_code: str
@@ -68,12 +73,6 @@ class Args:
 
 class SimpleWeather: #! Turn into a simple GUI
     def __init__(self, place=None):
-        """
-        Initialize the SimpleWeather class.
-
-        Parameters: \n
-            - `place` (str, optional): The location for which to retrieve weather information. Defaults to None.
-        """
         self.place = place
         self.current_location = self.get_location()
         self.base_url = 'http://api.weatherapi.com/v1/current.json'
@@ -81,30 +80,24 @@ class SimpleWeather: #! Turn into a simple GUI
 
     @staticmethod
     def get_ip_address():
-        """
-        Get the IP address of the current machine.
-
-        Returns:
-            `str`: The IP address of the machine.
-        """
         try:
+            ip_address = ip('me').ip
+            return ip_address
+        
+        except socket.error as e:
             s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             s.connect(('8.8.8.8', 80))
             ip_address = s.getsockname()[0]
             return ip_address
-        except socket.error as e:
+        
+        except Exception as e:
             print("Error: Failed to fetch IP address.", e)
-            raise SystemExit
+            return None
+            
 
     def get_location(self):
-        """
-        Retrieve the location information based on the IP address.
-
-        Returns:
-            - `str`: The location name.
-        """
         try:
-            ip_address = self.get_ip_address()
+            ip_address = self.get_ip_address
             response = requests.get('https://ipinfo.io/', params={
                 'token': config.geo_api,
                 'ip': ip_address,
@@ -116,17 +109,8 @@ class SimpleWeather: #! Turn into a simple GUI
         except requests.RequestException as e:
             print("Error: Failed to fetch location data.", e)
             raise SystemExit
-        except geocoder.GeocoderTimedOut as e:
-            print("Error: Geocoding timed out.", e)
-            raise SystemExit
 
     def get_weather(self):
-        """
-        Retrieve the current weather data.
-
-        Returns:
-            - `dict`: The JSON response containing the weather data.
-        """
         try:
             response = requests.get(self.base_url, params=self.query_params)
             response.raise_for_status()
@@ -216,15 +200,15 @@ class SimpleWeather: #! Turn into a simple GUI
         Parameters:
             - `data` (list): The data to be dumped into the JSON file.
         """
-        forecast_json = Path(__file__).parent.absolute() / file_name
-        if os.path.isfile(forecast_json) or not os.path.isfile(forecast_json):
+        json_file = Path(__file__).parent.absolute() / 'data_files' / file_name
+        if os.path.isfile(json_file) or not os.path.isfile(json_file):
             try:
                 if file_name:
                     if not file_name.endswith('.json'):
-                        with open(f'{file_name}.json', 'w') as f:
+                        with open(f'{json_file}.json', 'w') as f:
                             json.dump(data, f, indent=2)
                     else:
-                        with open(forecast_json, 'w') as f:
+                        with open(json_file, 'w') as f:
                             json.dump(data, f, indent=2)
             except OSError as e:
                 print("Error: Failed to write JSON data.", e)
@@ -246,15 +230,17 @@ class WeatherForecast(SimpleWeather):
             'unitGroup': 'metric',
             'location': self.place or self.get_location(),
         }
-        self._coordinates = None
-
-    @property
-    def get_coordinates(self):
-        return self._coordinates
     
     @staticmethod
     def get_config():
         return json.load(open(Path(__file__).parent.absolute() / 'config.json', encoding='utf-8'))
+    
+    
+    def get_coordinates(self):
+        data = self.get_weather()
+        if not data:
+            return None
+        return LocationInfo(arg1=data['longitude'], arg2=data['latitude'])
     
     def get_weather(self):
         """
@@ -287,14 +273,11 @@ class WeatherForecast(SimpleWeather):
         full_data = []
         
         coordinates = LocationInfo(arg1=data['longitude'], arg2=data['latitude'])
-        self._coordinates = coordinates
         location_name = data['resolvedAddress']
         both_degrees = lambda c_temp: (c_temp, round((c_temp * 9 / 5) + 32, 2))  # (Celsius, Fahrenheit)
         
         min_temp = [LocationInfo(*both_degrees(data['days'][i]['tempmin'])) for i in range(min(15, len(data['days'])))]
-        
         max_temp = [LocationInfo(*both_degrees(data['days'][i]['tempmax'])) for i in range(min(15, len(data['days'])))]
-        
         
         for i in range(min(15, len(data['days']))):
             day_data = data['days'][i]
@@ -310,15 +293,6 @@ class WeatherForecast(SimpleWeather):
         return full_data
 
     def data_to_json(self, data=None):
-        """
-        Convert the weather data to a JSON format.
-
-        Parameters:
-            - `data` (list, optional): The weather data to be converted. Defaults to None.
-
-        Returns:
-            - `list`: The converted weather data in JSON format.
-        """
         data = self.full_weather_data() if not data else data
         clean_data = []
         conditions = set()
@@ -356,12 +330,53 @@ class WeatherForecast(SimpleWeather):
         clean_data = WeatherConditons.modify_condition(clean_data)
         return clean_data
 
-class HistoricalData(WeatherForecast):
-    def __init__(self, place=None):
-        super().__init__(place)
-        self.coordinates = self.get_coordinates
-        self.base_url = f'https://archive-api.open-meteo.com/v1/archive?latitude={self.coordinates.arg2}&longitude={self.coordinates.arg1}&start_date=2020-12-31&end_date=2023-07-01hourly=temperature_2m&temperature_unit=fahrenheit&windspeed_unit=mph'
+class HistoricalData:
+    def __init__(self):
+        self.coordinates = WeatherForecast().get_coordinates()
+        self.base_url = 'https://archive-api.open-meteo.com/v1/archive?'\
+                        f'latitude={self.coordinates.arg2}&longitude={self.coordinates.arg1}&'\
+                        'start_date=2020-12-31&end_date=2023-07-01&'\
+                        'hourly=temperature_2m&temperature_unit=fahrenheit&'\
+                        'windspeed_unit=mph'
 
+    def parse_history(self):
+        try:
+            response = requests.get(self.base_url)
+            response.raise_for_status()
+        except requests.RequestException as e:
+            print("Error: Failed to fetch weather data.", e)
+            raise SystemExit
+
+        if response.status_code == 429:
+            print("Error: Too many requests. Please try again later.")
+        return response.json()
+    
+    def get_history_data(self):
+        data = self.parse_history()
+        
+        if not data:
+            return None
+        
+        data = data['hourly']
+        hourly_temp = data['temperature_2m']
+        date_and_time = [i.split('T') for i in data['time']]
+        modified_time = [[i[0], f'{i[1]}:00'] for i in date_and_time]
+        data_zipped = list(zip(hourly_temp, modified_time))
+        full_data = [HourlyData(date=i[1][0],time=i[1][-1],temp=i[0]) for i in data_zipped]
+        return full_data
+    
+    def hourly_json(self, data):
+        json_hourly = OrderedDict()
+        for idx, item in enumerate(data, start=1):
+            date_key = f'Date: {item.date}'
+            if date_key not in json_hourly:
+                json_hourly[date_key] = OrderedDict()
+            json_hourly[date_key][f'Time {idx}'] = item.time
+            json_hourly[date_key][f'Temperature {idx}'] = item.temp
+        
+        SimpleWeather.dump_json(json_hourly, file_name='History_data')
+        
+        return json_hourly
 
 class WeatherConditons:
     def __init__(self):
@@ -437,15 +452,6 @@ class WeatherIcons:
         self.base_url = 'https://openweathermap.org/img/wn/{}@2x.png'
     
     def parse_icon_url(self, icon_code):
-        """
-        Parse the icon URL and retrieve the icon data.
-
-        Parameters:
-            - `icon_code` (str): The code of the weather icon.
-
-        Returns:
-            - `bytes`: The content of the icon image.
-        """
         try:
             response = requests.get(self.base_url.format(icon_code))
             response.raise_for_status()
@@ -456,13 +462,7 @@ class WeatherIcons:
 
     @staticmethod
     def modify_icons():
-        """
-        Modify the weather emoji in the data and save the icons.
-
-        Returns:
-            - `bytes`: The decoded bytes of the icon image.
-        """
-        data = json.loads((Path(__file__).parent.absolute() / 'Forecast_data.json').read_text())
+        data = json.loads((Path(__file__).parent.absolute() / 'data_files' / 'Forecast_data.json').read_text())
         path = Path(__file__).parent.absolute()
         weather_icons = WeatherIcons()
         all_codes = OrderedDict(sorted(emoji_con.items() | missing_codes.items(), key=lambda i: i[1]))
@@ -515,23 +515,22 @@ def main():
     
     def get_history():
         history = HistoricalData()
-        
-        
-        
-    
-    
+        hist_data = history.get_history_data()
+        history.hourly_json(hist_data)
+
     try:
         simple_weather = input("\nWould you like a simple weather report? (y/n): ").lower()
         place = input("Enter a location (leave empty for current location): ")
         if simple_weather in ['no', 'n']:
             get_forecast(place)
-            
+            get_history()
         else:
             SimpleWeather(place).display_weather_report()
     except KeyboardInterrupt:
         try:
             again = input("\nWould you like to try again?\nEnter a location (leave empty for current location):")
             get_forecast(again)
+            get_history()
         except:
             print('\nProgram Terminated')
             sys.exit(0)
