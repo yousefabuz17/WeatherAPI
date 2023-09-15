@@ -8,10 +8,6 @@ This is a Python application that fetches and displays weather information using
 - [Examples](#examples)
     - [Simple Weather](#simple-weather)
     - [Weather Forecast](#weather-forecast)
-- [Time Complexity Analysis](#time-complexity-analysis)
-    - [Fetching Current Weather Data (Simple Weather)](#fetching-current-weather-data-simple-weather)
-    - [Fetching Weather Forecast Data (Weather Forecast)](#fetching-weather-forecast-data-weather-forecast)
-    - [Database Operations](#database-operations)
 - [Progress](#progress)
 - [Regression Modeling](#regression-modeling)
 - [Future Enhancements](#future-enhancements)
@@ -47,15 +43,6 @@ The Weather Forecast Application is a Python application that fetches weather da
 - [Regression Modeling](#regression-modeling)
 - **Dashboard still in-development**
 ---
-## Time Complexity Analysis
-### ```Fetching Current Weather Data (Simple Weather)```:
-The code for fetching current weather data has a time complexity of O(1). This is because it directly makes an HTTP request to the weather API and retrieves the required information. The time it takes to fetch the data remains constant, regardless of the size of the input or the number of iterations.
-
-### ```Fetching Weather Forecast Data (Weather Forecast)```:
-The code for fetching weather forecast data has a time complexity of O(1) as well. Similar to the simple weather functionality, it makes an HTTP request to the forecast API and retrieves the forecast data in a constant amount of time.
-
-### ```Database Operations```:
-The code for updating the SQL database with weather data has a time complexity of O(1) for each entry. The database operations, such as inserting location data, temperature data, and hourly data, are performed individually and do not depend on the size of the input or the number of existing entries.
 
 ## Database Tables
 
